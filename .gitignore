@@ -1,0 +1,24 @@
+# Node
+node_modules/
+npm-debug.log
+
+# Variables de entorno
+.env
+.env.local
+
+# React build
+frontend/build/
+frontend/dist/
+
+# Backend
+backend/uploads/
+
+# Editor
+.vscode/
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

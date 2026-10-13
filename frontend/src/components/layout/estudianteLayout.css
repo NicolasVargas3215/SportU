@@ -1,0 +1,334 @@
+/* =========================================
+   ESTRUCTURA GENERAL
+========================================= */
+
+.student-app {
+  min-height: 100vh;
+  background: #f5f7fb;
+  display: flex;
+  flex-direction: column;
+}
+
+/* =========================================
+   HEADER
+========================================= */
+
+.student-header {
+  height: 76px;
+  background: linear-gradient(
+    90deg,
+    #002e6d,
+    #003f88
+  );
+
+  color: white;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 0 28px;
+
+  box-shadow:
+    0 2px 8px
+    rgba(0, 0, 0, 0.16);
+
+  z-index: 10;
+}
+
+/* =========================================
+   MARCA
+========================================= */
+
+.student-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.student-brand-logo {
+  width: 44px;
+  height: 44px;
+
+  border: 2px solid white;
+  border-radius: 8px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.student-brand-title {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.student-brand-subtitle {
+  font-size: 10px;
+  letter-spacing: 2px;
+  opacity: 0.8;
+  margin-top: 4px;
+}
+
+/* =========================================
+   USUARIO
+========================================= */
+
+.student-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.student-avatar {
+  width: 42px;
+  height: 42px;
+
+  border-radius: 50%;
+
+  background: #f7931e;
+
+  color: white;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-weight: 700;
+  font-size: 18px;
+
+  border: 2px solid
+    rgba(255, 255, 255, 0.9);
+}
+
+.student-user-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.student-user-info strong {
+  font-size: 14px;
+}
+
+.student-user-info span {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+/* =========================================
+   CUERPO
+========================================= */
+
+.student-body {
+  display: flex;
+  flex: 1;
+}
+
+/* =========================================
+   SIDEBAR
+========================================= */
+
+.student-sidebar {
+  width: 225px;
+
+  background: linear-gradient(
+    180deg,
+    #003b7c,
+    #00275c
+  );
+
+  min-height:
+    calc(100vh - 146px);
+
+  padding-top: 18px;
+
+  box-shadow:
+    3px 0 10px
+    rgba(0, 0, 0, 0.08);
+}
+
+/* =========================================
+   NAVEGACIÓN
+========================================= */
+
+.student-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+
+  padding: 0 10px;
+}
+
+.student-nav-link {
+  width: 100%;
+
+  display: flex;
+  align-items: center;
+
+  gap: 12px;
+
+  text-decoration: none;
+
+  color: rgba(
+    255,
+    255,
+    255,
+    0.88
+  );
+
+  border: none;
+
+  background: transparent;
+
+  padding: 13px 15px;
+
+  border-radius: 7px;
+
+  font-size: 14px;
+
+  transition:
+    background 0.2s,
+    transform 0.2s,
+    color 0.2s;
+
+  cursor: pointer;
+}
+
+.student-nav-link svg {
+  min-width: 18px;
+}
+
+.student-nav-link:hover {
+  color: white;
+
+  background:
+    rgba(
+      255,
+      255,
+      255,
+      0.1
+    );
+
+  transform:
+    translateX(2px);
+}
+
+.student-nav-link.active {
+  color: white;
+
+  background:
+    #145db2;
+
+  box-shadow:
+    0 3px 8px
+    rgba(0, 0, 0, 0.15);
+}
+
+/* =========================================
+   LOGOUT
+========================================= */
+
+.student-logout {
+  text-align: left;
+}
+
+.student-logout:hover {
+  background:
+    rgba(
+      220,
+      53,
+      69,
+      0.22
+    );
+}
+
+/* =========================================
+   CONTENIDO
+========================================= */
+
+.student-content {
+  flex: 1;
+
+  padding: 32px;
+
+  overflow-x: hidden;
+}
+
+/* =========================================
+   FOOTER
+========================================= */
+
+.student-footer {
+  min-height: 70px;
+
+  background:
+    linear-gradient(
+      90deg,
+      #f28c00,
+      #ff9f0a
+    );
+
+  color: white;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  text-align: center;
+}
+
+.student-footer strong {
+  font-size: 18px;
+  letter-spacing: 0.5px;
+}
+
+.student-footer span {
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+/* =========================================
+   RESPONSIVE
+========================================= */
+
+@media (
+  max-width: 768px
+) {
+  .student-header {
+    padding:
+      0 15px;
+  }
+
+  .student-user-info {
+    display: none;
+  }
+
+  .student-sidebar {
+    width: 72px;
+  }
+
+  .student-nav-link {
+    justify-content:
+      center;
+
+    padding:
+      14px 10px;
+  }
+
+  .student-nav-link span {
+    display: none;
+  }
+
+  .student-content {
+    padding: 20px;
+  }
+
+  .student-brand-title {
+    font-size: 15px;
+  }
+}

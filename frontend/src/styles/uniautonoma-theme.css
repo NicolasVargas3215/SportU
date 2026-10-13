@@ -1,0 +1,428 @@
+/* =========================================================
+   SPORTU - TEMA INSTITUCIONAL
+   UNIAUTÓNOMA DEL CAUCA
+========================================================= */
+
+:root {
+  /* =======================================================
+     IDENTIDAD PRINCIPAL
+  ======================================================= */
+
+  --ua-blue-950: #052c53;
+  --ua-blue-900: #073b70;
+  --ua-blue-850: #08457f;
+  --ua-blue-800: #0a4d8f;
+  --ua-blue-700: #0e5da8;
+  --ua-blue-600: #176db8;
+  --ua-blue-500: #2b7bc3;
+
+  --ua-gold-700: #a97708;
+  --ua-gold-600: #c28f12;
+  --ua-gold-500: #dea921;
+  --ua-gold-400: #efc64d;
+  --ua-gold-300: #f6d875;
+  --ua-gold-100: #fff7dc;
+
+  /* =======================================================
+     NEUTROS
+  ======================================================= */
+
+  --ua-white: #ffffff;
+
+  --ua-background: #f5f7fa;
+  --ua-background-secondary: #eef2f6;
+
+  --ua-surface: #ffffff;
+  --ua-surface-soft: #f8fafc;
+
+  --ua-border: #dde4eb;
+  --ua-border-light: #e9edf2;
+
+  /* =======================================================
+     TEXTOS
+  ======================================================= */
+
+  --ua-text: #17324d;
+  --ua-text-dark: #102b45;
+  --ua-text-secondary: #6f8091;
+  --ua-text-muted: #94a0ac;
+
+  /* =======================================================
+     ESTADOS
+  ======================================================= */
+
+  --ua-success: #27814d;
+  --ua-success-bg: #e8f6ed;
+
+  --ua-warning: #a56b00;
+  --ua-warning-bg: #fff4d7;
+
+  --ua-danger: #b93843;
+  --ua-danger-bg: #fdebed;
+
+  --ua-info: #1769aa;
+  --ua-info-bg: #e9f3fb;
+
+  /* =======================================================
+     SOMBRAS
+  ======================================================= */
+
+  --ua-shadow-xs:
+    0 1px 3px
+    rgba(8, 48, 86, 0.06);
+
+  --ua-shadow-sm:
+    0 3px 10px
+    rgba(8, 48, 86, 0.07);
+
+  --ua-shadow-md:
+    0 7px 22px
+    rgba(8, 48, 86, 0.10);
+
+  --ua-shadow-lg:
+    0 18px 45px
+    rgba(8, 48, 86, 0.13);
+
+  /* =======================================================
+     RADIOS
+  ======================================================= */
+
+  --ua-radius-sm: 7px;
+  --ua-radius-md: 10px;
+  --ua-radius-lg: 14px;
+  --ua-radius-xl: 18px;
+
+  /* =======================================================
+     COMPATIBILIDAD CON SPORTU EXISTENTE
+  ======================================================= */
+
+  --sportu-blue: var(--ua-blue-800);
+  --sportu-dark-blue: var(--ua-blue-950);
+  --sportu-active-blue: var(--ua-blue-700);
+
+  --sportu-orange: var(--ua-gold-500);
+
+  --sportu-background: var(--ua-background);
+  --sportu-text: var(--ua-text);
+}
+
+/* =========================================================
+   RESET GLOBAL
+========================================================= */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  width: 100%;
+  min-height: 100%;
+
+  background:
+    var(--ua-background);
+}
+
+body {
+  width: 100%;
+  min-width: 0;
+  min-height: 100vh;
+
+  margin: 0;
+
+  background:
+    var(--ua-background);
+
+  color:
+    var(--ua-text);
+
+  font-family:
+    "Segoe UI",
+    Inter,
+    Arial,
+    Helvetica,
+    sans-serif;
+
+  -webkit-font-smoothing:
+    antialiased;
+
+  text-rendering:
+    optimizeLegibility;
+}
+
+/* =========================================================
+   SELECCIÓN
+========================================================= */
+
+::selection {
+  background:
+    var(--ua-gold-400);
+
+  color:
+    var(--ua-blue-950);
+}
+
+/* =========================================================
+   FOCUS
+========================================================= */
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline:
+    3px solid
+    rgba(222, 169, 33, 0.28);
+
+  outline-offset: 2px;
+}
+
+/* =========================================================
+   SCROLLBAR
+========================================================= */
+
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+::-webkit-scrollbar-track {
+  background:
+    #eef2f5;
+}
+
+::-webkit-scrollbar-thumb {
+  background:
+    #b4c0cc;
+
+  border-radius: 20px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background:
+    var(--ua-blue-600);
+}
+
+/* =========================================================
+   LINKS
+========================================================= */
+
+a {
+  color:
+    var(--ua-blue-700);
+}
+
+a:hover {
+  color:
+    var(--ua-blue-900);
+}
+
+/* =========================================================
+   TRANSICIONES
+========================================================= */
+
+button,
+a,
+input,
+select,
+textarea {
+  transition:
+    border-color 0.18s ease,
+    background-color 0.18s ease,
+    color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
+}
+
+/* =========================================================
+   BOOTSTRAP
+========================================================= */
+
+.btn-primary {
+  --bs-btn-bg:
+    var(--ua-blue-800);
+
+  --bs-btn-border-color:
+    var(--ua-blue-800);
+
+  --bs-btn-hover-bg:
+    var(--ua-blue-950);
+
+  --bs-btn-hover-border-color:
+    var(--ua-blue-950);
+
+  --bs-btn-active-bg:
+    var(--ua-blue-950);
+}
+
+/* =========================================================
+   PÁGINAS SPORTU
+========================================================= */
+
+.events-admin-page,
+.inventory-admin-page,
+.sports-admin-page,
+.loans-admin-page,
+.deportes-page,
+.prestamos-page {
+  color:
+    var(--ua-text);
+}
+
+/* =========================================================
+   ETIQUETAS SUPERIORES
+========================================================= */
+
+.events-section-label,
+.inventory-section-label,
+.sports-section-label,
+.loans-section-label,
+.deportes-section-label,
+.prestamos-section-label {
+  color:
+    var(--ua-gold-700) !important;
+}
+
+/* =========================================================
+   TÍTULOS
+========================================================= */
+
+.events-admin-header h1,
+.inventory-header h1,
+.sports-header h1,
+.loans-header h1,
+.deportes-header h1,
+.prestamos-header h1 {
+  color:
+    var(--ua-blue-950) !important;
+}
+
+/* =========================================================
+   BOTONES PRINCIPALES
+========================================================= */
+
+.events-new-button,
+.inventory-new-button,
+.sports-new-button,
+.loans-new-button,
+.deportes-new-button,
+.prestamos-new-button {
+  background:
+    linear-gradient(
+      135deg,
+      var(--ua-blue-800),
+      var(--ua-blue-600)
+    ) !important;
+
+  color:
+    #ffffff !important;
+
+  border:
+    1px solid
+    rgba(255, 255, 255, 0.08) !important;
+
+  box-shadow:
+    0 5px 14px
+    rgba(7, 59, 112, 0.20) !important;
+}
+
+.events-new-button:hover,
+.inventory-new-button:hover,
+.sports-new-button:hover,
+.loans-new-button:hover,
+.deportes-new-button:hover,
+.prestamos-new-button:hover {
+  background:
+    linear-gradient(
+      135deg,
+      var(--ua-blue-950),
+      var(--ua-blue-800)
+    ) !important;
+
+  transform:
+    translateY(-1px);
+}
+
+/* =========================================================
+   CARDS
+========================================================= */
+
+.events-summary-card,
+.inventory-summary-card,
+.sports-summary-card,
+.loans-summary-card {
+  border-color:
+    var(--ua-border) !important;
+
+  box-shadow:
+    var(--ua-shadow-sm) !important;
+}
+
+/* =========================================================
+   TABLAS
+========================================================= */
+
+.events-professional-table thead,
+.inventory-table thead,
+.loans-table thead {
+  background:
+    #f7f9fb !important;
+}
+
+.events-professional-table th,
+.inventory-table th,
+.loans-table th {
+  color:
+    var(--ua-blue-900) !important;
+}
+
+/* =========================================================
+   CAMPOS
+========================================================= */
+
+.events-search input:focus,
+.inventory-search input:focus,
+.inventory-field input:focus,
+.inventory-field select:focus {
+  border-color:
+    var(--ua-blue-600) !important;
+
+  box-shadow:
+    0 0 0 3px
+    rgba(14, 93, 168, 0.10) !important;
+}
+
+/* =========================================================
+   ACENTOS DORADOS
+========================================================= */
+
+.ua-gold-accent {
+  color:
+    var(--ua-gold-600);
+}
+
+.ua-gold-bg {
+  background:
+    var(--ua-gold-100);
+}
+
+/* =========================================================
+   UTILIDADES
+========================================================= */
+
+.ua-card {
+  background:
+    var(--ua-surface);
+
+  border:
+    1px solid
+    var(--ua-border);
+
+  border-radius:
+    var(--ua-radius-lg);
+
+  box-shadow:
+    var(--ua-shadow-sm);
+}

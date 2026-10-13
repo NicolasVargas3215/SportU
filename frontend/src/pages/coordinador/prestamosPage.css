@@ -1,0 +1,748 @@
+/* =====================================================
+   GENERAL
+===================================================== */
+
+.loans-admin-page,
+.loans-admin-page * {
+  box-sizing: border-box;
+}
+
+.loans-admin-page {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  padding-bottom: 40px;
+  overflow-x: hidden;
+}
+
+/* =====================================================
+   ENCABEZADO
+===================================================== */
+
+.loans-header {
+  margin-bottom: 25px;
+}
+
+.loans-section-label {
+  display: block;
+  color: #e98a00;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.loans-header h1 {
+  margin: 0;
+  color: #173b65;
+  font-size: clamp(27px, 2.2vw, 34px);
+  font-weight: 800;
+}
+
+.loans-header p {
+  margin: 8px 0 0;
+  color: #7c8997;
+  font-size: 14px;
+}
+
+/* =====================================================
+   MENSAJES
+===================================================== */
+
+.loans-message {
+  width: 100%;
+  padding: 14px 16px;
+  margin-bottom: 18px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.loans-message.success {
+  background: #e8f7ee;
+  border: 1px solid #c6e8d2;
+  color: #277848;
+}
+
+.loans-message.error {
+  background: #fff0f1;
+  border: 1px solid #f0c7cb;
+  color: #a72d36;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+/* =====================================================
+   TARJETAS RESUMEN
+===================================================== */
+
+.loans-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(
+    4,
+    minmax(0, 1fr)
+  );
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.loans-summary-card {
+  min-width: 0;
+  min-height: 94px;
+  padding: 16px;
+  background: white;
+  border: 1px solid #e1e7ee;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  box-shadow: 0 3px 11px rgba(17, 52, 90, 0.055);
+}
+
+.loan-summary-icon {
+  width: 47px;
+  height: 47px;
+  min-width: 47px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.loan-summary-icon.blue {
+  background: #e9f2fc;
+  color: #1763ad;
+}
+
+.loan-summary-icon.orange {
+  background: #fff0d8;
+  color: #d98200;
+}
+
+.loan-summary-icon.green {
+  background: #e1f5e9;
+  color: #27864e;
+}
+
+.loan-summary-icon.cyan {
+  background: #e5f7f8;
+  color: #238692;
+}
+
+.loans-summary-card > div:last-child {
+  display: flex;
+  flex-direction: column;
+}
+
+.loans-summary-card span {
+  color: #87929f;
+  font-size: 11px;
+}
+
+.loans-summary-card strong {
+  color: #1e426b;
+  font-size: 27px;
+  margin-top: 2px;
+}
+
+/* =====================================================
+   FORMULARIO
+===================================================== */
+
+.loan-form-card {
+  background: white;
+  border: 1px solid #e1e7ee;
+  border-radius: 13px;
+  padding: 21px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 15px rgba(17, 52, 90, 0.05);
+}
+
+.loan-card-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 17px;
+  margin-bottom: 19px;
+  border-bottom: 1px solid #edf0f4;
+}
+
+.loan-heading-icon {
+  width: 43px;
+  height: 43px;
+  min-width: 43px;
+  border-radius: 9px;
+  background: #e9f2fc;
+  color: #1763ad;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loan-card-heading h2 {
+  margin: 0;
+  color: #203f64;
+  font-size: 16px;
+}
+
+.loan-card-heading p {
+  margin: 3px 0 0;
+  color: #8b96a2;
+  font-size: 11px;
+}
+
+.loan-form-grid {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1.5fr)
+    minmax(0, 1.5fr)
+    minmax(110px, 0.55fr)
+    auto;
+  gap: 15px;
+  align-items: end;
+}
+
+.loan-field {
+  min-width: 0;
+}
+
+.loan-field label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 7px;
+  color: #43566a;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.loan-field label svg {
+  color: #71869b;
+}
+
+.loan-field select,
+.loan-field input {
+  width: 100%;
+  min-width: 0;
+  height: 44px;
+  padding: 0 11px;
+  border: 1px solid #d8e0e8;
+  border-radius: 8px;
+  background: white;
+  color: #405468;
+  font-size: 12px;
+  outline: none;
+}
+
+.loan-field select:focus,
+.loan-field input:focus {
+  border-color: #377fc4;
+  box-shadow: 0 0 0 3px rgba(55, 127, 196, 0.1);
+}
+
+.loan-submit-button {
+  min-height: 44px;
+  padding: 10px 17px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #07519b, #1268b9);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.loan-submit-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* =====================================================
+   ADVERTENCIA
+===================================================== */
+
+.loan-user-warning {
+  margin-top: 15px;
+  padding: 13px;
+  border: 1px solid #f2d29a;
+  border-radius: 9px;
+  background: #fff8e9;
+  color: #925f06;
+  display: flex;
+  gap: 10px;
+}
+
+.loan-user-warning > svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.loan-user-warning strong {
+  font-size: 12px;
+}
+
+.loan-user-warning p {
+  margin: 3px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* =====================================================
+   DISPONIBILIDAD
+===================================================== */
+
+.loan-equipment-info {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 14px;
+  color: #66798c;
+  font-size: 11px;
+}
+
+.loan-equipment-info svg {
+  color: #1d74b8;
+}
+
+.loan-equipment-info strong {
+  color: #245178;
+}
+
+/* =====================================================
+   HISTORIAL
+===================================================== */
+
+.loans-history-card {
+  background: white;
+  border: 1px solid #e1e7ee;
+  border-radius: 13px;
+  box-shadow: 0 4px 15px rgba(17, 52, 90, 0.05);
+  overflow: hidden;
+}
+
+.loans-toolbar {
+  padding: 17px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid #e6ebf0;
+}
+
+.loans-toolbar h2 {
+  margin: 0;
+  color: #203f64;
+  font-size: 16px;
+}
+
+.loans-toolbar p {
+  margin: 3px 0 0;
+  color: #8a96a3;
+  font-size: 10px;
+}
+
+.loans-toolbar-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.loans-search {
+  width: 280px;
+  max-width: 100%;
+  position: relative;
+}
+
+.loans-search svg {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #8a98a6;
+  font-size: 11px;
+}
+
+.loans-search input {
+  width: 100%;
+  height: 39px;
+  padding: 8px 10px 8px 33px;
+  border: 1px solid #dce3ea;
+  border-radius: 8px;
+  font-size: 11px;
+  outline: none;
+}
+
+.loans-filter {
+  height: 39px;
+  min-width: 120px;
+  padding: 0 9px;
+  border: 1px solid #dce3ea;
+  border-radius: 8px;
+  background: white;
+  color: #526579;
+  font-size: 11px;
+}
+
+/* =====================================================
+   TABLA
+===================================================== */
+
+.loans-table-wrapper {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.loans-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.loans-table thead {
+  background: #f7f9fb;
+}
+
+.loans-table th {
+  padding: 13px 12px;
+  text-align: left;
+  color: #68798b;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.45px;
+  white-space: nowrap;
+  border-bottom: 1px solid #e2e7ed;
+}
+
+.loans-table td {
+  padding: 15px 12px;
+  color: #485c70;
+  font-size: 11px;
+  border-bottom: 1px solid #edf0f3;
+  vertical-align: middle;
+}
+
+.loans-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* =====================================================
+   USUARIO
+===================================================== */
+
+.loan-user-cell {
+  min-width: 175px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.loan-user-avatar {
+  width: 37px;
+  height: 37px;
+  min-width: 37px;
+  border-radius: 50%;
+  background: #e9f2fc;
+  color: #1763ad;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+}
+
+.loan-user-cell > div:last-child {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.loan-user-cell strong {
+  color: #244566;
+  font-size: 12px;
+}
+
+.loan-user-cell span {
+  color: #8995a1;
+  font-size: 9px;
+  word-break: break-word;
+}
+
+.loan-user-cell small {
+  margin-top: 2px;
+  color: #1c70b2;
+  font-size: 8px;
+  text-transform: capitalize;
+}
+
+/* =====================================================
+   IMPLEMENTO / CANTIDAD
+===================================================== */
+
+.loan-equipment-name {
+  color: #36536f;
+  font-size: 12px;
+}
+
+.loan-quantity {
+  display: inline-flex;
+  min-width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  background: #f1f5f8;
+  color: #315472;
+  font-weight: 800;
+}
+
+/* =====================================================
+   ESTADO
+===================================================== */
+
+.loan-status {
+  display: inline-flex;
+  padding: 6px 10px;
+  border-radius: 20px;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.loan-status.active {
+  color: #a36700;
+  background: #fff0c8;
+}
+
+.loan-status.returned {
+  color: #237d49;
+  background: #dcf5e6;
+}
+
+/* =====================================================
+   DEVOLUCIÓN
+===================================================== */
+
+.loan-return-button {
+  min-height: 34px;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 7px;
+  background: #edf5fc;
+  color: #1765a9;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.loan-return-button:hover:not(:disabled) {
+  background: #deedf9;
+}
+
+.loan-return-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.loan-completed-text {
+  color: #318153;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+/* =====================================================
+   CARGANDO / VACÍO
+===================================================== */
+
+.loans-loading,
+.loans-empty {
+  min-height: 260px;
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+  color: #87939f;
+}
+
+.loans-empty > svg {
+  font-size: 35px;
+  color: #bbc5cf;
+}
+
+.loans-empty h3 {
+  margin: 3px 0 0;
+  color: #365471;
+  font-size: 16px;
+}
+
+.loans-empty p {
+  margin: 0;
+  font-size: 11px;
+}
+
+/* =====================================================
+   RESPONSIVE
+===================================================== */
+
+@media (max-width: 1200px) {
+  .loans-summary-grid {
+    grid-template-columns: repeat(
+      2,
+      minmax(0, 1fr)
+    );
+  }
+
+  .loan-form-grid {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+  .loan-submit-container {
+    display: flex;
+    align-items: flex-end;
+  }
+
+  .loan-submit-button {
+    width: 100%;
+  }
+}
+
+/* =====================================================
+   TABLA → CARDS
+===================================================== */
+
+@media (max-width: 950px) {
+  .loans-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .loans-toolbar-controls {
+    width: 100%;
+  }
+
+  .loans-search {
+    flex: 1;
+    width: auto;
+  }
+
+  .loans-table-wrapper {
+    overflow: visible;
+  }
+
+  .loans-table,
+  .loans-table thead,
+  .loans-table tbody,
+  .loans-table tr,
+  .loans-table th,
+  .loans-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .loans-table thead {
+    display: none;
+  }
+
+  .loans-table tbody {
+    padding: 14px;
+  }
+
+  .loans-table tr {
+    margin-bottom: 14px;
+    padding: 15px;
+    border: 1px solid #e4e9ef;
+    border-radius: 11px;
+    box-shadow: 0 2px 8px rgba(17, 52, 90, 0.04);
+  }
+
+  .loans-table tr:last-child {
+    margin-bottom: 0;
+  }
+
+  .loans-table td {
+    padding: 10px 0;
+    display: grid;
+    grid-template-columns:
+      120px
+      minmax(0, 1fr);
+    gap: 12px;
+    border-bottom: 1px solid #edf0f3;
+  }
+
+  .loans-table td:last-child {
+    border-bottom: none;
+  }
+
+  .loans-table td::before {
+    content: attr(data-label);
+    color: #708193;
+    font-size: 9px;
+    font-weight: 800;
+    text-transform: uppercase;
+    padding-top: 3px;
+  }
+
+  .loan-user-cell {
+    min-width: 0;
+  }
+}
+
+/* =====================================================
+   MÓVIL
+===================================================== */
+
+@media (max-width: 650px) {
+  .loans-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .loan-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .loans-toolbar-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .loans-search {
+    width: 100%;
+  }
+
+  .loans-filter {
+    width: 100%;
+  }
+
+  .loans-table td {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .loans-table td::before {
+    width: 100%;
+  }
+
+  .loan-return-button {
+    width: 100%;
+    justify-content: center;
+  }
+}
