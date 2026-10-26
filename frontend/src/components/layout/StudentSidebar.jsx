@@ -1,136 +1,226 @@
 import {
+  FaCalendarAlt,
+  FaClipboardList,
+  FaHome,
+  FaSignOutAlt,
+  FaTimes,
+  FaUser,
+} from "react-icons/fa";
+
+import {
   NavLink,
   useNavigate,
 } from "react-router-dom";
 
-import {
-  FaHome,
-  FaCalendarAlt,
-  FaClipboardList,
-  FaUser,
-  FaSignOutAlt,
-} from "react-icons/fa";
-
-function StudentSidebar() {
+function StudentSidebar({
+  abierto,
+  onClose,
+}) {
   const navigate =
     useNavigate();
 
-  const cerrarSesion = () => {
-    const confirmar =
-      window.confirm(
-        "¿Deseas cerrar sesión?"
+  const opciones = [
+    {
+      nombre:
+        "Inicio",
+
+      ruta:
+        "/estudiante",
+
+      icono:
+        <FaHome />,
+
+      end: true,
+    },
+
+    {
+      nombre:
+        "Eventos deportivos",
+
+      ruta:
+        "/estudiante/eventos",
+
+      icono:
+        <FaCalendarAlt />,
+    },
+
+    {
+      nombre:
+        "Mis inscripciones",
+
+      ruta:
+        "/estudiante/inscripciones",
+
+      icono:
+        <FaClipboardList />,
+    },
+
+    {
+      nombre:
+        "Mi perfil",
+
+      ruta:
+        "/estudiante/perfil",
+
+      icono:
+        <FaUser />,
+    },
+  ];
+
+  const cerrarSesion =
+    () => {
+      localStorage.removeItem(
+        "token"
       );
 
-    if (!confirmar) {
-      return;
-    }
+      localStorage.removeItem(
+        "usuario"
+      );
 
-    localStorage.removeItem(
-      "token"
-    );
-
-    localStorage.removeItem(
-      "usuario"
-    );
-
-    localStorage.removeItem(
-      "user"
-    );
-
-    navigate("/login");
-  };
-
-  const obtenerClase = ({
-    isActive,
-  }) => {
-    return isActive
-      ? "student-nav-link active"
-      : "student-nav-link";
-  };
+      navigate(
+        "/login",
+        {
+          replace: true,
+        }
+      );
+    };
 
   return (
-    <aside className="student-sidebar">
+    <aside
+      className={`sportu-sidebar student-sidebar ${
+        abierto
+          ? "open"
+          : ""
+      }`}
+    >
 
-      <nav className="student-nav">
+      <div className="sportu-sidebar-mobile-header">
 
-        {/* INICIO */}
+        <div>
 
-        <NavLink
-          to="/estudiante"
-          end
-          className={
-            obtenerClase
-          }
-        >
-          <FaHome />
-
-          <span>
-            Inicio
-          </span>
-        </NavLink>
-
-        {/* EVENTOS */}
-
-        <NavLink
-          to="/estudiante/eventos"
-          className={
-            obtenerClase
-          }
-        >
-          <FaCalendarAlt />
+          <strong>
+            SportU
+          </strong>
 
           <span>
-            Eventos disponibles
+            Estudiante
           </span>
-        </NavLink>
 
-        {/* INSCRIPCIONES */}
-
-        <NavLink
-          to="/estudiante/inscripciones"
-          className={
-            obtenerClase
-          }
-        >
-          <FaClipboardList />
-
-          <span>
-            Mis inscripciones
-          </span>
-        </NavLink>
-
-        {/* PERFIL */}
-
-        <NavLink
-          to="/estudiante/perfil"
-          className={
-            obtenerClase
-          }
-        >
-          <FaUser />
-
-          <span>
-            Mi perfil
-          </span>
-        </NavLink>
-
-        {/* CERRAR SESIÓN */}
+        </div>
 
         <button
           type="button"
-          className="student-nav-link student-logout"
+          onClick={
+            onClose
+          }
+        >
+          <FaTimes />
+        </button>
+
+      </div>
+
+      <div className="sportu-sidebar-brand">
+
+        <div className="sportu-sidebar-brand-icon">
+          E
+        </div>
+
+        <div>
+
+          <strong>
+            SportU
+          </strong>
+
+          <span>
+            Portal estudiante
+          </span>
+
+        </div>
+
+      </div>
+
+      <div className="sportu-sidebar-label">
+        Participación
+      </div>
+
+      <nav className="sportu-menu">
+
+        {opciones.map(
+          (
+            opcion
+          ) => (
+            <NavLink
+              key={
+                opcion.ruta
+              }
+              to={
+                opcion.ruta
+              }
+              end={
+                opcion.end
+              }
+              className={({
+                isActive,
+              }) =>
+                `sportu-menu-item ${
+                  isActive
+                    ? "active"
+                    : ""
+                }`
+              }
+            >
+
+              <span className="sportu-menu-icon">
+                {
+                  opcion.icono
+                }
+              </span>
+
+              <span className="sportu-menu-text">
+                {
+                  opcion.nombre
+                }
+              </span>
+
+            </NavLink>
+          )
+        )}
+
+      </nav>
+
+      <div className="sportu-sidebar-bottom">
+
+        <div className="sportu-sidebar-help">
+
+          <span>
+            Rol actual
+          </span>
+
+          <strong>
+            Estudiante
+          </strong>
+
+        </div>
+
+        <button
+          type="button"
+          className="sportu-menu-item sportu-logout"
           onClick={
             cerrarSesion
           }
         >
-          <FaSignOutAlt />
 
-          <span>
+          <span className="sportu-menu-icon">
+            <FaSignOutAlt />
+          </span>
+
+          <span className="sportu-menu-text">
             Cerrar sesión
           </span>
+
         </button>
 
-      </nav>
+      </div>
 
     </aside>
   );

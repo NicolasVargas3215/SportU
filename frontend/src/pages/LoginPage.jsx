@@ -231,11 +231,11 @@ function LoginPage() {
           </span>
 
           <h1>
-            Gestión deportiva
+            Gestión de 
             <br />
 
             <span>
-              más organizada.
+              Eventos deportivos.
             </span>
           </h1>
 

@@ -5,105 +5,103 @@ const API_URL =
 // TOKEN
 // =====================================================
 
-const obtenerToken = () => {
-  return localStorage.getItem("token");
-};
-
-// =====================================================
-// HEADERS
-// =====================================================
-
-const obtenerHeaders = () => {
-  return {
-    Authorization: `Bearer ${obtenerToken()}`,
-  };
-};
-
-// =====================================================
-// PROCESAR RESPUESTAS
-// =====================================================
-
-const procesarRespuesta = async (
-  respuesta,
-  mensajePorDefecto
-) => {
-  const datos =
-    await respuesta.json();
-
-  if (!respuesta.ok) {
-    throw new Error(
-      datos.mensaje ||
-        mensajePorDefecto
-    );
-  }
-
-  return datos;
-};
-
-// =====================================================
-// OBTENER ESTUDIANTES
-// =====================================================
-
-export const obtenerEstudiantes =
-  async () => {
-    const respuesta = await fetch(
-      `${API_URL}/estudiantes`,
-      {
-        headers:
-          obtenerHeaders(),
-      }
+const obtenerToken =
+  () =>
+    localStorage.getItem(
+      "token"
     );
 
+const headersAuth =
+  () => ({
+    Authorization:
+      `Bearer ${obtenerToken()}`,
+  });
+
+// =====================================================
+// PROCESAR RESPUESTA
+// =====================================================
+
+const procesarRespuesta =
+  async (
+    respuesta,
+    mensajePredeterminado
+  ) => {
     const datos =
-      await procesarRespuesta(
-        respuesta,
-        "Error al consultar los estudiantes"
-      );
+      await respuesta.json();
 
-    return datos.estudiantes;
+    if (!respuesta.ok) {
+      throw new Error(
+        datos.mensaje ||
+          mensajePredeterminado
+      );
+    }
+
+    return datos;
   };
 
 // =====================================================
-// OBTENER HORAS DEL ESTUDIANTE
+// ESTUDIANTES
 // =====================================================
 
-export const obtenerHorasEstudiante =
-  async (idEstudiante) => {
-    const respuesta = await fetch(
-      `${API_URL}/${idEstudiante}`,
-      {
-        headers:
-          obtenerHeaders(),
-      }
-    );
+export const obtenerEstudiantesHoras =
+  async () => {
+    const respuesta =
+      await fetch(
+        `${API_URL}/estudiantes`,
+        {
+          headers:
+            headersAuth(),
+        }
+      );
 
     return procesarRespuesta(
       respuesta,
-      "Error al consultar las horas deportivas"
+      "Error al consultar las horas deportivas."
     );
   };
 
 // =====================================================
-// OBTENER CERTIFICADOS
+// DETALLE
 // =====================================================
 
-export const obtenerCertificadosEstudiante =
-  async (idEstudiante) => {
-    const respuesta = await fetch(
-      `${API_URL}/${idEstudiante}/certificados`,
-      {
-        headers:
-          obtenerHeaders(),
-      }
-    );
-
-    const datos =
-      await procesarRespuesta(
-        respuesta,
-        "Error al consultar los certificados"
+export const obtenerDetalleHorasEstudiante =
+  async (
+    idEstudiante
+  ) => {
+    const respuesta =
+      await fetch(
+        `${API_URL}/estudiantes/${idEstudiante}`,
+        {
+          headers:
+            headersAuth(),
+        }
       );
 
-    return datos.certificados;
+    return procesarRespuesta(
+      respuesta,
+      "Error al consultar el detalle de horas."
+    );
+  };
+
+// =====================================================
+// CERTIFICADOS
+// =====================================================
+
+export const obtenerCertificados =
+  async () => {
+    const respuesta =
+      await fetch(
+        `${API_URL}/certificados`,
+        {
+          headers:
+            headersAuth(),
+        }
+      );
+
+    return procesarRespuesta(
+      respuesta,
+      "Error al consultar los certificados."
+    );
   };
 
 // =====================================================
@@ -111,19 +109,28 @@ export const obtenerCertificadosEstudiante =
 // =====================================================
 
 export const generarCertificado =
-  async (idEstudiante) => {
-    const respuesta = await fetch(
-      `${API_URL}/${idEstudiante}/certificados`,
-      {
-        method: "POST",
-        headers:
-          obtenerHeaders(),
-      }
-    );
+  async (
+    idEstudiante
+  ) => {
+    const respuesta =
+      await fetch(
+        `${API_URL}/estudiantes/${idEstudiante}/certificados`,
+        {
+          method:
+            "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json",
+
+            ...headersAuth(),
+          },
+        }
+      );
 
     return procesarRespuesta(
       respuesta,
-      "Error al generar el certificado"
+      "Error al generar el certificado."
     );
   };
 
@@ -133,20 +140,22 @@ export const generarCertificado =
 
 export const eliminarCertificado =
   async (
-    idEstudiante,
     idCertificado
   ) => {
-    const respuesta = await fetch(
-      `${API_URL}/${idEstudiante}/certificados/${idCertificado}`,
-      {
-        method: "DELETE",
-        headers:
-          obtenerHeaders(),
-      }
-    );
+    const respuesta =
+      await fetch(
+        `${API_URL}/certificados/${idCertificado}`,
+        {
+          method:
+            "DELETE",
+
+          headers:
+            headersAuth(),
+        }
+      );
 
     return procesarRespuesta(
       respuesta,
-      "Error al eliminar el certificado"
+      "Error al eliminar el certificado."
     );
   };

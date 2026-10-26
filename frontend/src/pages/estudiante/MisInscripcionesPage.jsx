@@ -5,20 +5,119 @@ import {
 } from "react";
 
 import {
+  FaCalendarAlt,
+  FaCheckCircle,
+  FaClock,
+  FaMapMarkerAlt,
+  FaSearch,
+  FaTimesCircle,
+  FaUserTie,
+} from "react-icons/fa";
+
+import {
   obtenerMisInscripciones,
 } from "../../services/inscripcionService";
 
-import "./studentPages.css";
+// =====================================================
+// HELPERS
+// =====================================================
+
+const obtenerFechaInicio =
+  (
+    inscripcion
+  ) => {
+    if (
+      inscripcion.fecha_inicio
+    ) {
+      return inscripcion.fecha_inicio;
+    }
+
+    if (
+      inscripcion.fecha
+    ) {
+      return `${inscripcion.fecha}T${
+        inscripcion.hora ||
+        "00:00"
+      }`;
+    }
+
+    return null;
+  };
+
+const formatearFechaHora =
+  (
+    fecha
+  ) => {
+    if (
+      !fecha
+    ) {
+      return "—";
+    }
+
+    const objeto =
+      new Date(
+        String(
+          fecha
+        ).replace(
+          " ",
+          "T"
+        )
+      );
+
+    if (
+      Number.isNaN(
+        objeto.getTime()
+      )
+    ) {
+      return fecha;
+    }
+
+    return objeto.toLocaleString(
+      "es-CO",
+      {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }
+    );
+  };
+
+const formatearHoras =
+  (
+    valor
+  ) =>
+    `${Number(
+      valor || 0
+    )
+      .toFixed(2)
+      .replace(
+        /\.?0+$/,
+        ""
+      )} h`;
+
+// =====================================================
+// COMPONENTE
+// =====================================================
 
 function MisInscripcionesPage() {
-  // =====================================================
-  // ESTADOS
-  // =====================================================
-
   const [
     inscripciones,
     setInscripciones,
   ] = useState([]);
+
+  const [
+    busqueda,
+    setBusqueda,
+  ] = useState("");
+
+  const [
+    filtro,
+    setFiltro,
+  ] = useState(
+    "todos"
+  );
 
   const [
     cargando,
@@ -30,685 +129,473 @@ function MisInscripcionesPage() {
     setError,
   ] = useState("");
 
-  // =====================================================
-  // CARGAR INSCRIPCIONES
-  // =====================================================
-
-  const cargarInscripciones =
-    async () => {
-      try {
-        setCargando(true);
-        setError("");
-
-        const datos =
-          await obtenerMisInscripciones();
-
-        setInscripciones(
-          Array.isArray(datos)
-            ? datos
-            : []
-        );
-      } catch (err) {
-        console.error(err);
-
-        setError(
-          err.message ||
-            "No fue posible consultar tus inscripciones."
-        );
-      } finally {
-        setCargando(false);
-      }
-    };
-
-  // =====================================================
-  // CARGA INICIAL
-  // =====================================================
-
   useEffect(() => {
-    cargarInscripciones();
-  }, []);
-
-  // =====================================================
-  // NORMALIZAR ESTADO
-  // =====================================================
-
-  const normalizarEstado = (
-    estado
-  ) => {
-    return String(
-      estado || ""
-    )
-      .normalize("NFD")
-      .replace(
-        /[\u0300-\u036f]/g,
-        ""
-      )
-      .trim()
-      .toLowerCase();
-  };
-
-  // =====================================================
-  // RESUMEN
-  // =====================================================
-
-  const resumen = useMemo(() => {
-    let pendientes = 0;
-    let asistidos = 0;
-    let noAsistidos = 0;
-
-    inscripciones.forEach(
-      (inscripcion) => {
-        const estado =
-          normalizarEstado(
-            inscripcion.asistencia
+    const cargar =
+      async () => {
+        try {
+          setCargando(
+            true
           );
 
-        if (
-          estado === "asistio"
-        ) {
-          asistidos += 1;
-        } else if (
-          estado === "no asistio"
-        ) {
-          noAsistidos += 1;
-        } else {
-          pendientes += 1;
+          setError("");
+
+          const datos =
+            await obtenerMisInscripciones();
+
+          setInscripciones(
+            datos.inscripciones ||
+              []
+          );
+        } catch (err) {
+          setError(
+            err.message ||
+              "No fue posible consultar tus inscripciones."
+          );
+        } finally {
+          setCargando(
+            false
+          );
         }
-      }
-    );
+      };
 
-    return {
-      total:
-        inscripciones.length,
+    cargar();
+  }, []);
 
-      pendientes,
+  const filtradas =
+    useMemo(() => {
+      const texto =
+        busqueda
+          .trim()
+          .toLowerCase();
 
-      asistidos,
+      return inscripciones.filter(
+        (
+          inscripcion
+        ) => {
+          const coincideTexto =
+            !texto ||
+            inscripcion.evento
+              ?.toLowerCase()
+              .includes(
+                texto
+              ) ||
+            inscripcion.deporte
+              ?.toLowerCase()
+              .includes(
+                texto
+              ) ||
+            inscripcion.docente
+              ?.toLowerCase()
+              .includes(
+                texto
+              );
 
-      noAsistidos,
-    };
-  }, [inscripciones]);
+          const coincideFiltro =
+            filtro ===
+              "todos" ||
+            inscripcion.asistencia ===
+              filtro;
 
-  // =====================================================
-  // FORMATEAR FECHA
-  // =====================================================
-
-  const formatearFecha = (
-    fecha
-  ) => {
-    if (!fecha) {
-      return "-";
-    }
-
-    const texto =
-      String(fecha).substring(
-        0,
-        10
+          return (
+            coincideTexto &&
+            coincideFiltro
+          );
+        }
       );
+    }, [
+      inscripciones,
+      busqueda,
+      filtro,
+    ]);
 
-    const [
-      anio,
-      mes,
-      dia,
-    ] = texto.split("-");
+  const resumen =
+    useMemo(() => {
+      return inscripciones.reduce(
+        (
+          acumulado,
+          item
+        ) => {
+          acumulado.total +=
+            1;
 
-    if (
-      !anio ||
-      !mes ||
-      !dia
-    ) {
-      return texto;
-    }
+          if (
+            item.asistencia ===
+            "Asistió"
+          ) {
+            acumulado.asistio +=
+              1;
 
-    const fechaLocal =
-      new Date(
-        Number(anio),
-        Number(mes) - 1,
-        Number(dia)
+            acumulado.horas +=
+              Number(
+                item.duracion_horas ||
+                  0
+              );
+          }
+
+          if (
+            item.asistencia ===
+            "No asistió"
+          ) {
+            acumulado.noAsistio +=
+              1;
+          }
+
+          if (
+            item.asistencia ===
+            "Pendiente"
+          ) {
+            acumulado.pendiente +=
+              1;
+          }
+
+          return acumulado;
+        },
+        {
+          total: 0,
+          asistio: 0,
+          noAsistio: 0,
+          pendiente: 0,
+          horas: 0,
+        }
       );
-
-    return fechaLocal.toLocaleDateString(
-      "es-CO",
-      {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      }
-    );
-  };
-
-  // =====================================================
-  // FORMATEAR HORA
-  // =====================================================
-
-  const formatearHora = (
-    hora
-  ) => {
-    if (!hora) {
-      return "-";
-    }
-
-    return String(hora)
-      .substring(0, 5);
-  };
-
-  // =====================================================
-  // FORMATEAR DURACIÓN
-  // =====================================================
-
-  const formatearDuracion = (
-    duracion
-  ) => {
-    const numero =
-      Number(duracion);
-
-    if (
-      Number.isNaN(numero)
-    ) {
-      return "0";
-    }
-
-    if (
-      Number.isInteger(numero)
-    ) {
-      return numero;
-    }
-
-    return numero.toFixed(2);
-  };
-
-  // =====================================================
-  // BADGE ASISTENCIA
-  // =====================================================
-
-  const obtenerEstadoAsistencia = (
-    asistencia
-  ) => {
-    const estado =
-      normalizarEstado(
-        asistencia
-      );
-
-    if (
-      estado === "asistio"
-    ) {
-      return (
-        <span className="student-status attended">
-          ✓ Asistió
-        </span>
-      );
-    }
-
-    if (
-      estado === "no asistio"
-    ) {
-      return (
-        <span className="student-status absent">
-          ✕ No asistió
-        </span>
-      );
-    }
-
-    return (
-      <span className="student-status pending">
-        Pendiente
-      </span>
-    );
-  };
-
-  // =====================================================
-  // ICONO DEPORTE
-  // =====================================================
-
-  const obtenerIconoDeporte = (
-    deporte
-  ) => {
-    const nombre =
-      String(
-        deporte || ""
-      ).toLowerCase();
-
-    if (
-      nombre.includes("fut")
-    ) {
-      return "⚽";
-    }
-
-    if (
-      nombre.includes(
-        "baloncesto"
-      ) ||
-      nombre.includes(
-        "basket"
-      )
-    ) {
-      return "🏀";
-    }
-
-    if (
-      nombre.includes("vole")
-    ) {
-      return "🏐";
-    }
-
-    if (
-      nombre.includes("atlet")
-    ) {
-      return "🏃";
-    }
-
-    if (
-      nombre.includes("tenis")
-    ) {
-      return "🎾";
-    }
-
-    return "🏅";
-  };
-
-  // =====================================================
-  // RENDER
-  // =====================================================
+    }, [
+      inscripciones,
+    ]);
 
   return (
     <div className="student-page">
 
-      {/* =============================================== */}
-      {/* ENCABEZADO */}
-      {/* =============================================== */}
-
-      <div className="student-page-header">
+      <section className="student-page-header">
 
         <div>
+
+          <span className="student-eyebrow">
+            MI PARTICIPACIÓN
+          </span>
 
           <h1>
             Mis inscripciones
           </h1>
 
           <p>
-            Consulta las actividades deportivas
-            en las que te encuentras registrado.
+            Consulta los eventos en los que estás
+            registrado y revisa el estado de tu
+            asistencia.
           </p>
 
         </div>
 
-      </div>
-
-      {/* =============================================== */}
-      {/* ERROR */}
-      {/* =============================================== */}
+      </section>
 
       {error && (
-
-        <div className="alert alert-danger">
+        <div className="student-alert error">
           {error}
         </div>
-
       )}
 
-      {/* =============================================== */}
-      {/* CARGANDO */}
-      {/* =============================================== */}
+      <section className="student-summary-grid">
 
-      {cargando ? (
+        <article className="student-summary-card">
 
-        <div className="student-loading-card">
+          <div className="student-summary-icon blue">
+            <FaCalendarAlt />
+          </div>
 
-          <div
-            className="spinner-border text-primary"
-            role="status"
+          <div>
+            <span>
+              Inscripciones
+            </span>
+
+            <strong>
+              {
+                resumen.total
+              }
+            </strong>
+
+            <small>
+              Total registrado
+            </small>
+          </div>
+
+        </article>
+
+        <article className="student-summary-card">
+
+          <div className="student-summary-icon green">
+            <FaCheckCircle />
+          </div>
+
+          <div>
+            <span>
+              Asistencias
+            </span>
+
+            <strong>
+              {
+                resumen.asistio
+              }
+            </strong>
+
+            <small>
+              Confirmadas
+            </small>
+          </div>
+
+        </article>
+
+        <article className="student-summary-card">
+
+          <div className="student-summary-icon warning">
+            <FaClock />
+          </div>
+
+          <div>
+            <span>
+              Pendientes
+            </span>
+
+            <strong>
+              {
+                resumen.pendiente
+              }
+            </strong>
+
+            <small>
+              Sin evaluar
+            </small>
+          </div>
+
+        </article>
+
+        <article className="student-summary-card">
+
+          <div className="student-summary-icon gold">
+            <FaClock />
+          </div>
+
+          <div>
+            <span>
+              Horas obtenidas
+            </span>
+
+            <strong>
+              {formatearHoras(
+                resumen.horas
+              )}
+            </strong>
+
+            <small>
+              Eventos asistidos
+            </small>
+          </div>
+
+        </article>
+
+      </section>
+
+      <section className="student-toolbar registrations">
+
+        <div className="student-search">
+
+          <FaSearch />
+
+          <input
+            type="text"
+            placeholder="Buscar evento, deporte o docente..."
+            value={
+              busqueda
+            }
+            onChange={(
+              event
+            ) =>
+              setBusqueda(
+                event.target.value
+              )
+            }
           />
 
+        </div>
+
+        <select
+          value={
+            filtro
+          }
+          onChange={(
+            event
+          ) =>
+            setFiltro(
+              event.target.value
+            )
+          }
+        >
+          <option value="todos">
+            Todos los estados
+          </option>
+
+          <option value="Pendiente">
+            Pendiente
+          </option>
+
+          <option value="Asistió">
+            Asistió
+          </option>
+
+          <option value="No asistió">
+            No asistió
+          </option>
+        </select>
+
+      </section>
+
+      {cargando ? (
+        <div className="student-card student-loading">
+          Cargando inscripciones...
+        </div>
+      ) : filtradas.length ===
+        0 ? (
+        <div className="student-card student-empty">
+
+          <FaCalendarAlt />
+
+          <strong>
+            No hay inscripciones
+          </strong>
+
           <span>
-            Consultando tus inscripciones...
+            No existen registros que coincidan con
+            tu búsqueda.
           </span>
 
         </div>
-
       ) : (
+        <section className="student-registrations-list">
 
-        <>
+          {filtradas.map(
+            (
+              inscripcion
+            ) => {
+              const horasObtenidas =
+                inscripcion.asistencia ===
+                "Asistió"
+                  ? Number(
+                      inscripcion.duracion_horas ||
+                        0
+                    )
+                  : 0;
 
-          {/* =========================================== */}
-          {/* RESUMEN */}
-          {/* =========================================== */}
-
-          <div className="student-registration-summary">
-
-            <div className="student-summary-card">
-
-              <div className="student-summary-icon">
-                📋
-              </div>
-
-              <div>
-
-                <small>
-                  Inscripciones
-                </small>
-
-                <strong>
-                  {resumen.total}
-                </strong>
-
-              </div>
-
-            </div>
-
-            <div className="student-summary-card">
-
-              <div className="student-summary-icon pending">
-                ⏳
-              </div>
-
-              <div>
-
-                <small>
-                  Pendientes
-                </small>
-
-                <strong>
-                  {
-                    resumen.pendientes
+              return (
+                <article
+                  key={
+                    inscripcion.id_inscripcion
                   }
-                </strong>
+                  className="student-registration-card"
+                >
 
-              </div>
+                  <div className="student-registration-main">
 
-            </div>
+                    <div className="student-registration-icon">
 
-            <div className="student-summary-card">
-
-              <div className="student-summary-icon attended">
-                ✓
-              </div>
-
-              <div>
-
-                <small>
-                  Asistidas
-                </small>
-
-                <strong>
-                  {
-                    resumen.asistidos
-                  }
-                </strong>
-
-              </div>
-
-            </div>
-
-            <div className="student-summary-card">
-
-              <div className="student-summary-icon absent">
-                ✕
-              </div>
-
-              <div>
-
-                <small>
-                  No asistidas
-                </small>
-
-                <strong>
-                  {
-                    resumen.noAsistidos
-                  }
-                </strong>
-
-              </div>
-
-            </div>
-
-          </div>
-
-          {/* =========================================== */}
-          {/* SIN INSCRIPCIONES */}
-          {/* =========================================== */}
-
-          {inscripciones.length ===
-          0 ? (
-
-            <div className="student-empty-card">
-
-              <div className="student-empty-symbol">
-                📋
-              </div>
-
-              <h3>
-                No tienes inscripciones
-              </h3>
-
-              <p>
-                Cuando te inscribas en un evento
-                deportivo aparecerá aquí.
-              </p>
-
-            </div>
-
-          ) : (
-
-            /* ========================================= */
-            /* LISTADO */
-            /* ========================================= */
-
-            <div className="student-registration-list">
-
-              {inscripciones.map(
-                (
-                  inscripcion
-                ) => (
-
-                  <article
-                    className="student-registration-card"
-                    key={
-                      inscripcion.id_inscripcion
-                    }
-                  >
-
-                    {/* ICONO */}
-
-                    <div className="student-registration-sport">
-
-                      {obtenerIconoDeporte(
-                        inscripcion.deporte
+                      {inscripcion.asistencia ===
+                      "Asistió" ? (
+                        <FaCheckCircle />
+                      ) : inscripcion.asistencia ===
+                        "No asistió" ? (
+                        <FaTimesCircle />
+                      ) : (
+                        <FaClock />
                       )}
 
                     </div>
 
-                    {/* EVENTO */}
+                    <div>
 
-                    <div className="student-registration-main">
+                      <span className="student-event-sport">
+                        {
+                          inscripcion.deporte
+                        }
+                      </span>
 
-                      <div className="student-registration-title">
+                      <h2>
+                        {
+                          inscripcion.evento
+                        }
+                      </h2>
 
-                        <div>
-
-                          <span className="student-registration-sport-name">
-
-                            {
-                              inscripcion.deporte
-                            }
-
-                          </span>
-
-                          <h2>
-
-                            {
-                              inscripcion.evento
-                            }
-
-                          </h2>
-
-                        </div>
-
-                        {obtenerEstadoAsistencia(
-                          inscripcion.asistencia
-                        )}
-
-                      </div>
-
-                      {/* INFORMACIÓN */}
-
-                      <div className="student-registration-details">
-
-                        <div>
-
-                          <span>
-                            📅
-                          </span>
-
-                          <div>
-
-                            <small>
-                              Fecha
-                            </small>
-
-                            <strong>
-
-                              {formatearFecha(
-                                inscripcion.fecha
-                              )}
-
-                            </strong>
-
-                          </div>
-
-                        </div>
-
-                        <div>
-
-                          <span>
-                            🕐
-                          </span>
-
-                          <div>
-
-                            <small>
-                              Hora
-                            </small>
-
-                            <strong>
-
-                              {formatearHora(
-                                inscripcion.hora
-                              )}
-
-                            </strong>
-
-                          </div>
-
-                        </div>
-
-                        <div>
-
-                          <span>
-                            📍
-                          </span>
-
-                          <div>
-
-                            <small>
-                              Lugar
-                            </small>
-
-                            <strong>
-
-                              {
-                                inscripcion.lugar ||
-                                "Por definir"
-                              }
-
-                            </strong>
-
-                          </div>
-
-                        </div>
-
-                        <div>
-
-                          <span>
-                            👨‍🏫
-                          </span>
-
-                          <div>
-
-                            <small>
-                              Docente
-                            </small>
-
-                            <strong>
-
-                              {
-                                inscripcion.docente ||
-                                "-"
-                              }
-
-                            </strong>
-
-                          </div>
-
-                        </div>
-
-                        <div>
-
-                          <span>
-                            ⏱️
-                          </span>
-
-                          <div>
-
-                            <small>
-                              Duración
-                            </small>
-
-                            <strong>
-
-                              {formatearDuracion(
-                                inscripcion.duracion_horas
-                              )}{" "}
-                              hora(s)
-
-                            </strong>
-
-                          </div>
-
-                        </div>
-
-                      </div>
-
-                      {/* PIE */}
-
-                      <div className="student-registration-footer">
+                      <div className="student-registration-meta">
 
                         <span>
-                          Inscripción realizada:
+                          <FaCalendarAlt />
+
+                          {formatearFechaHora(
+                            obtenerFechaInicio(
+                              inscripcion
+                            )
+                          )}
                         </span>
 
-                        <strong>
+                        <span>
+                          <FaMapMarkerAlt />
 
-                          {formatearFecha(
-                            inscripcion.fecha_inscripcion
-                          )}
+                          {
+                            inscripcion.lugar
+                          }
+                        </span>
 
-                        </strong>
+                        <span>
+                          <FaUserTie />
+
+                          {
+                            inscripcion.docente ||
+                            "Docente por definir"
+                          }
+                        </span>
 
                       </div>
 
                     </div>
 
-                  </article>
+                  </div>
 
-                )
-              )}
+                  <div className="student-registration-status">
 
-            </div>
+                    <span
+                      className={`student-attendance ${
+                        inscripcion.asistencia ===
+                        "Asistió"
+                          ? "attended"
+                          : inscripcion.asistencia ===
+                            "No asistió"
+                          ? "absent"
+                          : "pending"
+                      }`}
+                    >
+                      {
+                        inscripcion.asistencia
+                      }
+                    </span>
 
+                    <div>
+
+                      <span>
+                        Horas obtenidas
+                      </span>
+
+                      <strong>
+                        {formatearHoras(
+                          horasObtenidas
+                        )}
+                      </strong>
+
+                    </div>
+
+                  </div>
+
+                </article>
+              );
+            }
           )}
 
-        </>
-
+        </section>
       )}
 
     </div>

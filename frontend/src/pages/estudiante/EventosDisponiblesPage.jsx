@@ -1,14 +1,106 @@
 import {
   useEffect,
+  useMemo,
   useState,
 } from "react";
+
+import {
+  FaCalendarAlt,
+  FaCheckCircle,
+  FaClock,
+  FaMapMarkerAlt,
+  FaSearch,
+  FaUserTie,
+  FaUsers,
+} from "react-icons/fa";
 
 import {
   obtenerEventosDisponibles,
   registrarInscripcion,
 } from "../../services/inscripcionService";
 
-import "./studentPages.css";
+// =====================================================
+// HELPERS
+// =====================================================
+
+const obtenerFechaInicio =
+  (
+    evento
+  ) => {
+    if (
+      evento.fecha_inicio
+    ) {
+      return evento.fecha_inicio;
+    }
+
+    if (
+      evento.fecha
+    ) {
+      return `${evento.fecha}T${
+        evento.hora ||
+        "00:00"
+      }`;
+    }
+
+    return null;
+  };
+
+const formatearFechaHora =
+  (
+    fecha
+  ) => {
+    if (
+      !fecha
+    ) {
+      return "—";
+    }
+
+    const objeto =
+      new Date(
+        String(
+          fecha
+        ).replace(
+          " ",
+          "T"
+        )
+      );
+
+    if (
+      Number.isNaN(
+        objeto.getTime()
+      )
+    ) {
+      return fecha;
+    }
+
+    return objeto.toLocaleString(
+      "es-CO",
+      {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }
+    );
+  };
+
+const formatearHoras =
+  (
+    valor
+  ) =>
+    `${Number(
+      valor || 0
+    )
+      .toFixed(2)
+      .replace(
+        /\.?0+$/,
+        ""
+      )} h`;
+
+// =====================================================
+// COMPONENTE
+// =====================================================
 
 function EventosDisponiblesPage() {
   const [
@@ -17,503 +109,366 @@ function EventosDisponiblesPage() {
   ] = useState([]);
 
   const [
+    busqueda,
+    setBusqueda,
+  ] = useState("");
+
+  const [
     cargando,
     setCargando,
   ] = useState(true);
 
   const [
-    idEventoProcesando,
-    setIdEventoProcesando,
+    procesando,
+    setProcesando,
   ] = useState(null);
-
-  const [
-    mensaje,
-    setMensaje,
-  ] = useState("");
 
   const [
     error,
     setError,
   ] = useState("");
 
-  // =====================================================
-  // CARGAR EVENTOS
-  // =====================================================
+  const [
+    exito,
+    setExito,
+  ] = useState("");
 
-  const cargarEventos = async () => {
-    try {
-      setCargando(true);
-      setError("");
+  const cargarEventos =
+    async () => {
+      try {
+        setCargando(
+          true
+        );
 
-      const datos =
-        await obtenerEventosDisponibles();
+        setError("");
 
-      setEventos(
-        Array.isArray(datos)
-          ? datos
-          : []
-      );
-    } catch (err) {
-      console.error(err);
+        const datos =
+          await obtenerEventosDisponibles();
 
-      setError(
-        err.message ||
-          "No fue posible cargar los eventos."
-      );
-    } finally {
-      setCargando(false);
-    }
-  };
+        setEventos(
+          datos.eventos ||
+            []
+        );
+      } catch (err) {
+        setError(
+          err.message ||
+            "No fue posible consultar los eventos."
+        );
+      } finally {
+        setCargando(
+          false
+        );
+      }
+    };
 
   useEffect(() => {
     cargarEventos();
   }, []);
 
-  // =====================================================
-  // INSCRIBIRSE
-  // =====================================================
+  const eventosFiltrados =
+    useMemo(() => {
+      const texto =
+        busqueda
+          .trim()
+          .toLowerCase();
 
-  const manejarInscripcion = async (
-    evento
-  ) => {
-    if (evento.inscrito) {
-      return;
-    }
+      if (
+        !texto
+      ) {
+        return eventos;
+      }
 
-    if (
-      Number(
-        evento.cupos_disponibles
-      ) <= 0
-    ) {
-      setError(
-        "Este evento no tiene cupos disponibles."
+      return eventos.filter(
+        (
+          evento
+        ) =>
+          evento.nombre
+            ?.toLowerCase()
+            .includes(
+              texto
+            ) ||
+          evento.deporte
+            ?.toLowerCase()
+            .includes(
+              texto
+            ) ||
+          evento.docente
+            ?.toLowerCase()
+            .includes(
+              texto
+            ) ||
+          evento.lugar
+            ?.toLowerCase()
+            .includes(
+              texto
+            )
       );
+    }, [
+      eventos,
+      busqueda,
+    ]);
 
-      return;
-    }
+  const inscribirme =
+    async (
+      evento
+    ) => {
+      const confirmar =
+        window.confirm(
+          `¿Deseas inscribirte en "${evento.nombre}"?`
+        );
 
-    const confirmar =
-      window.confirm(
-        `¿Deseas inscribirte en "${evento.nombre}"?`
-      );
+      if (
+        !confirmar
+      ) {
+        return;
+      }
 
-    if (!confirmar) {
-      return;
-    }
-
-    try {
-      setIdEventoProcesando(
-        evento.id_evento
-      );
-
-      setMensaje("");
-      setError("");
-
-      const resultado =
-        await registrarInscripcion(
+      try {
+        setProcesando(
           evento.id_evento
         );
 
-      setMensaje(
-        resultado.mensaje ||
-          "Inscripción realizada correctamente."
-      );
+        setError("");
+        setExito("");
 
-      await cargarEventos();
-    } catch (err) {
-      console.error(err);
+        const respuesta =
+          await registrarInscripcion(
+            evento.id_evento
+          );
 
-      setError(
-        err.message ||
-          "No fue posible realizar la inscripción."
-      );
-    } finally {
-      setIdEventoProcesando(
-        null
-      );
-    }
-  };
+        setExito(
+          respuesta.mensaje ||
+            "Inscripción registrada correctamente."
+        );
 
-  // =====================================================
-  // FORMATEAR FECHA
-  // =====================================================
-
-  const formatearFecha = (
-    fecha
-  ) => {
-    if (!fecha) {
-      return "-";
-    }
-
-    const texto =
-      String(fecha).substring(
-        0,
-        10
-      );
-
-    const [
-      anio,
-      mes,
-      dia,
-    ] = texto.split("-");
-
-    if (
-      !anio ||
-      !mes ||
-      !dia
-    ) {
-      return texto;
-    }
-
-    const fechaLocal =
-      new Date(
-        Number(anio),
-        Number(mes) - 1,
-        Number(dia)
-      );
-
-    return fechaLocal.toLocaleDateString(
-      "es-CO",
-      {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
+        await cargarEventos();
+      } catch (err) {
+        setError(
+          err.message ||
+            "No fue posible realizar la inscripción."
+        );
+      } finally {
+        setProcesando(
+          null
+        );
       }
-    );
-  };
-
-  // =====================================================
-  // FORMATEAR HORA
-  // =====================================================
-
-  const formatearHora = (
-    hora
-  ) => {
-    if (!hora) {
-      return "-";
-    }
-
-    return String(hora)
-      .substring(0, 5);
-  };
-
-  // =====================================================
-  // ICONO DEPORTE
-  // =====================================================
-
-  const obtenerIconoDeporte = (
-    deporte
-  ) => {
-    const nombre =
-      String(
-        deporte || ""
-      ).toLowerCase();
-
-    if (
-      nombre.includes("fut")
-    ) {
-      return "⚽";
-    }
-
-    if (
-      nombre.includes("baloncesto") ||
-      nombre.includes("basket")
-    ) {
-      return "🏀";
-    }
-
-    if (
-      nombre.includes("vole")
-    ) {
-      return "🏐";
-    }
-
-    if (
-      nombre.includes("atlet")
-    ) {
-      return "🏃";
-    }
-
-    if (
-      nombre.includes("tenis")
-    ) {
-      return "🎾";
-    }
-
-    return "🏅";
-  };
-
-  // =====================================================
-  // RENDER
-  // =====================================================
+    };
 
   return (
     <div className="student-page">
 
-      {/* ENCABEZADO */}
-
-      <div className="student-page-header">
+      <section className="student-page-header">
 
         <div>
 
+          <span className="student-eyebrow">
+            PARTICIPACIÓN DEPORTIVA
+          </span>
+
           <h1>
-            Eventos disponibles
+            Eventos deportivos
           </h1>
 
           <p>
-            Explora las actividades deportivas
-            e inscríbete mientras existan cupos.
+            Consulta las actividades con
+            inscripciones abiertas y participa en
+            los eventos de la universidad.
           </p>
 
         </div>
 
-        {!cargando && (
-          <div className="student-page-counter">
-
-            {eventos.length}
-
-            <span>
-              evento
-              {eventos.length === 1
-                ? ""
-                : "s"}
-            </span>
-
-          </div>
-        )}
-
-      </div>
-
-      {/* MENSAJES */}
-
-      {mensaje && (
-
-        <div className="alert alert-success">
-          {mensaje}
-        </div>
-
-      )}
+      </section>
 
       {error && (
-
-        <div className="alert alert-danger">
+        <div className="student-alert error">
           {error}
         </div>
-
       )}
 
-      {/* CARGANDO */}
+      {exito && (
+        <div className="student-alert success">
 
-      {cargando ? (
+          <FaCheckCircle />
 
-        <div className="student-loading-card">
+          {exito}
 
-          <div
-            className="spinner-border text-primary"
-            role="status"
+        </div>
+      )}
+
+      <section className="student-toolbar">
+
+        <div className="student-search">
+
+          <FaSearch />
+
+          <input
+            type="text"
+            placeholder="Buscar evento, deporte, docente o lugar..."
+            value={
+              busqueda
+            }
+            onChange={(
+              event
+            ) =>
+              setBusqueda(
+                event.target.value
+              )
+            }
           />
 
+        </div>
+
+        <span>
+          {
+            eventosFiltrados.length
+          }{" "}
+          evento(s) disponible(s)
+        </span>
+
+      </section>
+
+      {cargando ? (
+        <div className="student-card student-loading">
+          Cargando eventos deportivos...
+        </div>
+      ) : eventosFiltrados.length ===
+        0 ? (
+        <div className="student-card student-empty">
+
+          <FaCalendarAlt />
+
+          <strong>
+            No hay eventos disponibles
+          </strong>
+
           <span>
-            Cargando eventos deportivos...
+            Actualmente no existen actividades
+            abiertas que coincidan con tu búsqueda.
           </span>
 
         </div>
-
-      ) : eventos.length === 0 ? (
-
-        <div className="student-empty-card">
-
-          <div className="student-empty-symbol">
-            🏅
-          </div>
-
-          <h3>
-            No hay eventos disponibles
-          </h3>
-
-          <p>
-            Actualmente no existen actividades
-            deportivas habilitadas.
-          </p>
-
-        </div>
-
       ) : (
+        <section className="student-events-grid">
 
-        <div className="student-events-grid">
+          {eventosFiltrados.map(
+            (
+              evento
+            ) => {
+              const inscrito =
+                Boolean(
+                  Number(
+                    evento.inscrito
+                  )
+                ) ||
+                evento.inscrito ===
+                  true;
 
-          {eventos.map(
-            (evento) => {
+              const cupos =
+                Number(
+                  evento.cupos_disponibles ??
+                    0
+                );
 
               const sinCupos =
-                Number(
-                  evento.cupos_disponibles
-                ) <= 0;
-
-              const procesando =
-                idEventoProcesando ===
-                evento.id_evento;
+                cupos <= 0;
 
               return (
-
                 <article
-                  className="student-event-card"
                   key={
                     evento.id_evento
                   }
+                  className="student-event-card"
                 >
 
-                  {/* CABECERA */}
+                  <div className="student-event-top">
 
-                  <div className="student-event-card-top">
-
-                    <div className="student-event-big-icon">
-
-                      {obtenerIconoDeporte(
+                    <span className="student-event-sport">
+                      {
                         evento.deporte
-                      )}
+                      }
+                    </span>
 
-                    </div>
+                    {inscrito ? (
+                      <span className="student-event-status registered">
 
-                    <div className="student-event-badges">
+                        <FaCheckCircle />
 
-                      <span className="student-sport-badge">
-
-                        {
-                          evento.deporte
-                        }
-
+                        Inscrito
                       </span>
-
-                      {evento.inscrito && (
-
-                        <span className="student-enrolled-badge">
-                          Inscrito
-                        </span>
-
-                      )}
-
-                    </div>
+                    ) : sinCupos ? (
+                      <span className="student-event-status full">
+                        Sin cupos
+                      </span>
+                    ) : (
+                      <span className="student-event-status available">
+                        Disponible
+                      </span>
+                    )}
 
                   </div>
 
-                  {/* NOMBRE */}
-
                   <h2>
-
                     {
                       evento.nombre
                     }
-
                   </h2>
 
-                  {/* DATOS */}
-
-                  <div className="student-event-data">
+                  <div className="student-event-details">
 
                     <div>
 
-                      <span className="student-data-icon">
-                        📅
+                      <FaCalendarAlt />
+
+                      <span>
+                        {formatearFechaHora(
+                          obtenerFechaInicio(
+                            evento
+                          )
+                        )}
                       </span>
-
-                      <div>
-
-                        <small>
-                          Fecha
-                        </small>
-
-                        <strong>
-
-                          {formatearFecha(
-                            evento.fecha
-                          )}
-
-                        </strong>
-
-                      </div>
 
                     </div>
 
                     <div>
 
-                      <span className="student-data-icon">
-                        🕐
+                      <FaMapMarkerAlt />
+
+                      <span>
+                        {
+                          evento.lugar
+                        }
                       </span>
-
-                      <div>
-
-                        <small>
-                          Hora
-                        </small>
-
-                        <strong>
-
-                          {formatearHora(
-                            evento.hora
-                          )}
-
-                        </strong>
-
-                      </div>
 
                     </div>
 
                     <div>
 
-                      <span className="student-data-icon">
-                        📍
+                      <FaUserTie />
+
+                      <span>
+                        {
+                          evento.docente ||
+                          "Docente por definir"
+                        }
                       </span>
-
-                      <div>
-
-                        <small>
-                          Lugar
-                        </small>
-
-                        <strong>
-
-                          {
-                            evento.lugar ||
-                            "Por definir"
-                          }
-
-                        </strong>
-
-                      </div>
 
                     </div>
 
                     <div>
 
-                      <span className="student-data-icon">
-                        👨‍🏫
+                      <FaClock />
+
+                      <span>
+                        {formatearHoras(
+                          evento.duracion_horas
+                        )}
                       </span>
-
-                      <div>
-
-                        <small>
-                          Docente
-                        </small>
-
-                        <strong>
-
-                          {
-                            evento.docente ||
-                            "-"
-                          }
-
-                        </strong>
-
-                      </div>
 
                     </div>
 
                   </div>
 
-                  {/* CUPOS */}
-
-                  <div className="student-capacity-box">
+                  <div className="student-event-capacity">
 
                     <div>
 
@@ -521,113 +476,94 @@ function EventosDisponiblesPage() {
                         Cupos disponibles
                       </span>
 
-                      <strong
-                        className={
-                          sinCupos
-                            ? "capacity-danger"
-                            : "capacity-success"
-                        }
-                      >
-
-                        {
-                          evento.cupos_disponibles
-                        }
-
+                      <strong>
+                        {cupos}
                       </strong>
 
                     </div>
 
-                    <div className="student-capacity-line">
+                    <div>
 
-                      <div
-                        style={{
-                          width:
-                            evento.cupo_maximo > 0
-                              ? `${Math.min(
-                                  100,
-                                  (
-                                    Number(
-                                      evento.inscritos
-                                    ) /
-                                    Number(
-                                      evento.cupo_maximo
-                                    )
-                                  ) * 100
-                                )}%`
-                              : "0%",
-                        }}
-                      />
+                      <span>
+                        Cupo máximo
+                      </span>
+
+                      <strong>
+                        {
+                          evento.cupo_maximo
+                        }
+                      </strong>
 
                     </div>
 
-                    <small>
+                    <div>
 
-                      {
-                        evento.inscritos
-                      }{" "}
-                      de{" "}
-                      {
-                        evento.cupo_maximo
-                      }{" "}
-                      cupos ocupados
+                      <span>
+                        Inscritos
+                      </span>
 
-                    </small>
+                      <strong>
+                        {
+                          evento.inscritos ||
+                          0
+                        }
+                      </strong>
+
+                    </div>
 
                   </div>
 
-                  {/* ACCIÓN */}
+                  <button
+                    type="button"
+                    className={`student-register-button ${
+                      inscrito
+                        ? "registered"
+                        : ""
+                    }`}
+                    disabled={
+                      inscrito ||
+                      sinCupos ||
+                      procesando ===
+                        evento.id_evento
+                    }
+                    onClick={() =>
+                      inscribirme(
+                        evento
+                      )
+                    }
+                  >
 
-                  {evento.inscrito ? (
+                    {inscrito ? (
+                      <>
+                        <FaCheckCircle />
 
-                    <button
-                      type="button"
-                      className="student-event-button enrolled"
-                      disabled
-                    >
-                      ✓ Ya estás inscrito
-                    </button>
+                        Ya estás inscrito
+                      </>
+                    ) : procesando ===
+                      evento.id_evento ? (
+                      "Inscribiendo..."
+                    ) : sinCupos ? (
+                      <>
+                        <FaUsers />
 
-                  ) : sinCupos ? (
+                        Sin cupos
+                      </>
+                    ) : (
+                      <>
+                        <FaUsers />
 
-                    <button
-                      type="button"
-                      className="student-event-button disabled"
-                      disabled
-                    >
-                      Sin cupos disponibles
-                    </button>
+                        Inscribirme
+                      </>
+                    )}
 
-                  ) : (
-
-                    <button
-                      type="button"
-                      className="student-event-button"
-                      disabled={
-                        procesando
-                      }
-                      onClick={() =>
-                        manejarInscripcion(
-                          evento
-                        )
-                      }
-                    >
-
-                      {procesando
-                        ? "Inscribiendo..."
-                        : "Inscribirme"}
-
-                    </button>
-
-                  )}
+                  </button>
 
                 </article>
-
               );
             }
           )}
 
-        </div>
-
+        </section>
       )}
 
     </div>

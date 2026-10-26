@@ -1,343 +1,675 @@
 const pool = require("../config/db");
 
 // =====================================================
-// CONSTANTES
+// CONFIGURACIÓN
 // =====================================================
 
 const PORCENTAJE_MINIMO_CERTIFICADO = 85;
 
+/*
+  Los eventos actuales utilizan fecha_inicio y fecha_fin.
+
+  duracion_horas se conserva como respaldo porque la migración
+  anterior dejó los campos antiguos en la tabla.
+*/
+const DURACION_EVENTO_SQL = `
+  COALESCE(
+    NULLIF(
+      GREATEST(
+        TIMESTAMPDIFF(
+          MINUTE,
+          e.fecha_inicio,
+          e.fecha_fin
+        ) / 60.0,
+        0
+      ),
+      0
+    ),
+    e.duracion_horas,
+    0
+  )
+`;
+
 // =====================================================
-// FUNCIONES AUXILIARES
+// HELPERS
 // =====================================================
 
-const normalizarTexto = (texto) => {
-  if (!texto) {
-    return "";
-  }
+const convertirNumero = (valor) => {
+  const numero = Number(valor);
 
-  return String(texto)
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim()
-    .toLowerCase();
+  return Number.isFinite(numero)
+    ? numero
+    : 0;
 };
 
-const asistio = (estado) => {
-  return normalizarTexto(estado) === "asistio";
-};
-
-const noAsistio = (estado) => {
-  return normalizarTexto(estado) === "no asistio";
-};
-
-// =====================================================
-// CALCULAR RESUMEN DE HORAS Y ASISTENCIA
-// =====================================================
-
-const calcularResumenHoras = (actividades) => {
-  let horasAsistidas = 0;
-  let horasEvaluadas = 0;
-
-  actividades.forEach((actividad) => {
-    const duracion =
-      Number(actividad.duracion_horas) || 0;
-
-    // Si asistió:
-    // suma horas asistidas y horas evaluadas
-    if (asistio(actividad.asistencia)) {
-      horasAsistidas += duracion;
-      horasEvaluadas += duracion;
-    }
-
-    // Si no asistió:
-    // solamente suma al total evaluado
-    else if (
-      noAsistio(actividad.asistencia)
-    ) {
-      horasEvaluadas += duracion;
-    }
-
-    // Pendiente no se tiene en cuenta
-    // para calcular el porcentaje.
-  });
-
-  horasAsistidas = Number(
-    horasAsistidas.toFixed(2)
-  );
-
-  horasEvaluadas = Number(
-    horasEvaluadas.toFixed(2)
-  );
-
-  const porcentajeAsistencia =
-    horasEvaluadas > 0
-      ? Number(
-          (
-            (horasAsistidas /
-              horasEvaluadas) *
-            100
-          ).toFixed(2)
-        )
-      : 0;
-
-  const puedeGenerarCertificado =
-    horasAsistidas > 0 &&
-    porcentajeAsistencia >=
-      PORCENTAJE_MINIMO_CERTIFICADO;
-
-  return {
-    horasAsistidas,
-    horasEvaluadas,
-    porcentajeAsistencia,
-    puedeGenerarCertificado,
-  };
-};
-
-// =====================================================
-// OBTENER ESTUDIANTES ACTIVOS
-// =====================================================
-
-const obtenerEstudiantes = async (
-  req,
-  res
+const redondear = (
+  valor,
+  decimales = 2
 ) => {
-  try {
-    const [estudiantes] =
-      await pool.query(`
-        SELECT
-          id_usuario,
-          nombre,
-          correo,
-          estado
-        FROM usuarios
-        WHERE rol = 'estudiante'
-          AND estado = 'activo'
-        ORDER BY nombre ASC
-      `);
+  const numero =
+    convertirNumero(valor);
 
-    return res.json({
-      ok: true,
-      estudiantes,
-    });
-  } catch (error) {
-    console.error(
-      "Error al consultar estudiantes:",
-      error
+  const factor =
+    10 ** decimales;
+
+  return (
+    Math.round(
+      numero * factor
+    ) / factor
+  );
+};
+
+const calcularResumen =
+  (actividades = []) => {
+    let horasAcumuladas = 0;
+    let horasEvaluadas = 0;
+
+    let eventosAsistidos = 0;
+    let eventosNoAsistidos = 0;
+    let eventosPendientes = 0;
+
+    actividades.forEach(
+      (actividad) => {
+        const duracion =
+          convertirNumero(
+            actividad.duracion_horas
+          );
+
+        if (
+          actividad.asistencia ===
+          "Asistió"
+        ) {
+          horasAcumuladas +=
+            duracion;
+
+          horasEvaluadas +=
+            duracion;
+
+          eventosAsistidos += 1;
+        }
+
+        if (
+          actividad.asistencia ===
+          "No asistió"
+        ) {
+          horasEvaluadas +=
+            duracion;
+
+          eventosNoAsistidos += 1;
+        }
+
+        if (
+          actividad.asistencia ===
+          "Pendiente"
+        ) {
+          eventosPendientes += 1;
+        }
+      }
     );
 
-    return res.status(500).json({
-      ok: false,
-      mensaje:
-        "Error al consultar los estudiantes",
-    });
-  }
-};
+    horasAcumuladas =
+      redondear(
+        horasAcumuladas
+      );
+
+    horasEvaluadas =
+      redondear(
+        horasEvaluadas
+      );
+
+    const porcentajeAsistencia =
+      horasEvaluadas > 0
+        ? redondear(
+            (
+              horasAcumuladas /
+              horasEvaluadas
+            ) * 100,
+            1
+          )
+        : 0;
+
+    return {
+      horas_acumuladas:
+        horasAcumuladas,
+
+      horas_evaluadas:
+        horasEvaluadas,
+
+      porcentaje_asistencia:
+        porcentajeAsistencia,
+
+      eventos_asistidos:
+        eventosAsistidos,
+
+      eventos_no_asistidos:
+        eventosNoAsistidos,
+
+      eventos_pendientes:
+        eventosPendientes,
+
+      eventos_evaluados:
+        eventosAsistidos +
+        eventosNoAsistidos,
+
+      elegible_certificado:
+        horasAcumuladas > 0 &&
+        horasEvaluadas > 0 &&
+        porcentajeAsistencia >=
+          PORCENTAJE_MINIMO_CERTIFICADO,
+
+      porcentaje_minimo:
+        PORCENTAJE_MINIMO_CERTIFICADO,
+    };
+  };
 
 // =====================================================
-// OBTENER HORAS DE UN ESTUDIANTE
+// OBTENER ESTUDIANTES CON RESUMEN DE HORAS
 // =====================================================
 
-const obtenerHorasEstudiante = async (
-  req,
-  res
-) => {
-  try {
-    const { id } = req.params;
+const obtenerEstudiantesHoras =
+  async (req, res) => {
+    try {
+      const [estudiantes] =
+        await pool.query(`
+          SELECT
+            u.id_usuario,
+            u.nombre,
+            u.correo,
 
-    // -------------------------------------------------
-    // VALIDAR ESTUDIANTE
-    // -------------------------------------------------
+            ROUND(
+              COALESCE(
+                SUM(
+                  CASE
+                    WHEN i.asistencia = 'Asistió'
+                    THEN ${DURACION_EVENTO_SQL}
+                    ELSE 0
+                  END
+                ),
+                0
+              ),
+              2
+            ) AS horas_acumuladas,
 
-    const [estudiantes] =
-      await pool.query(
-        `
+            ROUND(
+              COALESCE(
+                SUM(
+                  CASE
+                    WHEN i.asistencia
+                      IN (
+                        'Asistió',
+                        'No asistió'
+                      )
+                    THEN ${DURACION_EVENTO_SQL}
+                    ELSE 0
+                  END
+                ),
+                0
+              ),
+              2
+            ) AS horas_evaluadas,
+
+            SUM(
+              CASE
+                WHEN i.asistencia = 'Asistió'
+                THEN 1
+                ELSE 0
+              END
+            ) AS eventos_asistidos,
+
+            SUM(
+              CASE
+                WHEN i.asistencia = 'No asistió'
+                THEN 1
+                ELSE 0
+              END
+            ) AS eventos_no_asistidos,
+
+            SUM(
+              CASE
+                WHEN i.asistencia = 'Pendiente'
+                THEN 1
+                ELSE 0
+              END
+            ) AS eventos_pendientes,
+
+            SUM(
+              CASE
+                WHEN i.asistencia
+                  IN (
+                    'Asistió',
+                    'No asistió'
+                  )
+                THEN 1
+                ELSE 0
+              END
+            ) AS eventos_evaluados,
+
+            CASE
+              WHEN
+                COALESCE(
+                  SUM(
+                    CASE
+                      WHEN i.asistencia
+                        IN (
+                          'Asistió',
+                          'No asistió'
+                        )
+                      THEN ${DURACION_EVENTO_SQL}
+                      ELSE 0
+                    END
+                  ),
+                  0
+                ) > 0
+              THEN
+                ROUND(
+                  (
+                    COALESCE(
+                      SUM(
+                        CASE
+                          WHEN i.asistencia = 'Asistió'
+                          THEN ${DURACION_EVENTO_SQL}
+                          ELSE 0
+                        END
+                      ),
+                      0
+                    )
+                    /
+                    COALESCE(
+                      SUM(
+                        CASE
+                          WHEN i.asistencia
+                            IN (
+                              'Asistió',
+                              'No asistió'
+                            )
+                          THEN ${DURACION_EVENTO_SQL}
+                          ELSE 0
+                        END
+                      ),
+                      0
+                    )
+                  ) * 100,
+                  1
+                )
+              ELSE 0
+            END AS porcentaje_asistencia,
+
+            (
+              SELECT COUNT(*)
+              FROM certificados c
+              WHERE
+                c.id_estudiante =
+                u.id_usuario
+            ) AS certificados_generados
+
+          FROM usuarios u
+
+          LEFT JOIN inscripciones i
+            ON
+              i.id_usuario =
+              u.id_usuario
+
+          LEFT JOIN eventos e
+            ON
+              e.id_evento =
+              i.id_evento
+
+          WHERE
+            u.rol = 'estudiante'
+            AND
+            u.estado = 'activo'
+
+          GROUP BY
+            u.id_usuario,
+            u.nombre,
+            u.correo
+
+          ORDER BY
+            u.nombre ASC
+        `);
+
+      const resultado =
+        estudiantes.map(
+          (estudiante) => {
+            const horasAcumuladas =
+              convertirNumero(
+                estudiante.horas_acumuladas
+              );
+
+            const horasEvaluadas =
+              convertirNumero(
+                estudiante.horas_evaluadas
+              );
+
+            const porcentaje =
+              convertirNumero(
+                estudiante.porcentaje_asistencia
+              );
+
+            return {
+              ...estudiante,
+
+              horas_acumuladas:
+                horasAcumuladas,
+
+              horas_evaluadas:
+                horasEvaluadas,
+
+              porcentaje_asistencia:
+                porcentaje,
+
+              eventos_asistidos:
+                convertirNumero(
+                  estudiante.eventos_asistidos
+                ),
+
+              eventos_no_asistidos:
+                convertirNumero(
+                  estudiante.eventos_no_asistidos
+                ),
+
+              eventos_pendientes:
+                convertirNumero(
+                  estudiante.eventos_pendientes
+                ),
+
+              eventos_evaluados:
+                convertirNumero(
+                  estudiante.eventos_evaluados
+                ),
+
+              certificados_generados:
+                convertirNumero(
+                  estudiante.certificados_generados
+                ),
+
+              elegible_certificado:
+                horasAcumuladas > 0 &&
+                horasEvaluadas > 0 &&
+                porcentaje >=
+                  PORCENTAJE_MINIMO_CERTIFICADO,
+            };
+          }
+        );
+
+      return res.json({
+        ok: true,
+
+        porcentaje_minimo:
+          PORCENTAJE_MINIMO_CERTIFICADO,
+
+        estudiantes:
+          resultado,
+      });
+    } catch (error) {
+      console.error(
+        "Error al consultar horas:",
+        error
+      );
+
+      return res.status(500).json({
+        ok: false,
+        mensaje:
+          "No fue posible consultar las horas deportivas.",
+      });
+    }
+  };
+
+// =====================================================
+// DETALLE DE HORAS DE UN ESTUDIANTE
+// =====================================================
+
+const obtenerDetalleHorasEstudiante =
+  async (req, res) => {
+    try {
+      const {
+        id,
+      } = req.params;
+
+      const idEstudiante =
+        Number(id);
+
+      if (
+        !Number.isInteger(
+          idEstudiante
+        ) ||
+        idEstudiante <= 0
+      ) {
+        return res.status(400).json({
+          ok: false,
+          mensaje:
+            "El estudiante seleccionado no es válido.",
+        });
+      }
+
+      const [usuarios] =
+        await pool.query(
+          `
           SELECT
             id_usuario,
             nombre,
             correo,
             estado
           FROM usuarios
-          WHERE id_usuario = ?
+          WHERE
+            id_usuario = ?
             AND rol = 'estudiante'
-        `,
-        [id]
-      );
-
-    if (estudiantes.length === 0) {
-      return res.status(404).json({
-        ok: false,
-        mensaje:
-          "Estudiante no encontrado",
-      });
-    }
-
-    const estudiante =
-      estudiantes[0];
-
-    // -------------------------------------------------
-    // CONSULTAR ACTIVIDADES
-    // -------------------------------------------------
-
-    const [actividades] =
-      await pool.query(
-        `
-          SELECT
-            i.id_inscripcion,
-            i.id_evento,
-            e.nombre AS evento,
-            e.fecha,
-            e.hora,
-            e.lugar,
-            e.duracion_horas,
-            i.asistencia
-          FROM inscripciones i
-          INNER JOIN eventos e
-            ON e.id_evento = i.id_evento
-          WHERE i.id_usuario = ?
-          ORDER BY
-            e.fecha DESC,
-            e.hora DESC
-        `,
-        [id]
-      );
-
-    // -------------------------------------------------
-    // PROCESAR ACTIVIDADES
-    // -------------------------------------------------
-
-    const actividadesProcesadas =
-      actividades.map((actividad) => {
-        const duracion =
-          Number(
-            actividad.duracion_horas
-          ) || 0;
-
-        const horasObtenidas =
-          asistio(
-            actividad.asistencia
-          )
-            ? duracion
-            : 0;
-
-        return {
-          ...actividad,
-          horas_obtenidas:
-            horasObtenidas,
-        };
-      });
-
-    // -------------------------------------------------
-    // CALCULAR RESUMEN
-    // -------------------------------------------------
-
-    const resumen =
-      calcularResumenHoras(
-        actividades
-      );
-
-    return res.json({
-      ok: true,
-
-      estudiante,
-
-      actividades:
-        actividadesProcesadas,
-
-      total_horas:
-        resumen.horasAsistidas,
-
-      horas_evaluadas:
-        resumen.horasEvaluadas,
-
-      porcentaje_asistencia:
-        resumen.porcentajeAsistencia,
-
-      porcentaje_minimo:
-        PORCENTAJE_MINIMO_CERTIFICADO,
-
-      puede_generar_certificado:
-        resumen.puedeGenerarCertificado,
-    });
-  } catch (error) {
-    console.error(
-      "Error al consultar horas deportivas:",
-      error
-    );
-
-    return res.status(500).json({
-      ok: false,
-      mensaje:
-        "Error al consultar las horas deportivas",
-    });
-  }
-};
-
-// =====================================================
-// OBTENER CERTIFICADOS DE UN ESTUDIANTE
-// =====================================================
-
-const obtenerCertificadosEstudiante =
-  async (req, res) => {
-    try {
-      const { id } = req.params;
-
-      // -------------------------------------------------
-      // VALIDAR ESTUDIANTE
-      // -------------------------------------------------
-
-      const [estudiantes] =
-        await pool.query(
-          `
-            SELECT
-              id_usuario,
-              nombre,
-              correo
-            FROM usuarios
-            WHERE id_usuario = ?
-              AND rol = 'estudiante'
+          LIMIT 1
           `,
-          [id]
+          [
+            idEstudiante,
+          ]
         );
 
       if (
-        estudiantes.length === 0
+        usuarios.length === 0
       ) {
         return res.status(404).json({
           ok: false,
           mensaje:
-            "Estudiante no encontrado",
+            "El estudiante no existe.",
         });
       }
 
-      // -------------------------------------------------
-      // CONSULTAR CERTIFICADOS
-      // -------------------------------------------------
+      const [actividades] =
+        await pool.query(
+          `
+          SELECT
+            i.id_inscripcion,
+
+            e.id_evento,
+
+            e.nombre AS evento,
+
+            d.nombre AS deporte,
+
+            DATE_FORMAT(
+              e.fecha_inicio,
+              '%Y-%m-%d %H:%i:%s'
+            ) AS fecha_inicio,
+
+            DATE_FORMAT(
+              e.fecha_fin,
+              '%Y-%m-%d %H:%i:%s'
+            ) AS fecha_fin,
+
+            ROUND(
+              ${DURACION_EVENTO_SQL},
+              2
+            ) AS duracion_horas,
+
+            i.asistencia,
+
+            CASE
+              WHEN i.asistencia = 'Asistió'
+              THEN
+                ROUND(
+                  ${DURACION_EVENTO_SQL},
+                  2
+                )
+              ELSE 0
+            END AS horas_obtenidas
+
+          FROM inscripciones i
+
+          INNER JOIN eventos e
+            ON
+              e.id_evento =
+              i.id_evento
+
+          LEFT JOIN deportes d
+            ON
+              d.id_deporte =
+              e.id_deporte
+
+          WHERE
+            i.id_usuario = ?
+
+          ORDER BY
+            e.fecha_inicio DESC
+          `,
+          [
+            idEstudiante,
+          ]
+        );
+
+      const actividadesNormalizadas =
+        actividades.map(
+          (actividad) => ({
+            ...actividad,
+
+            duracion_horas:
+              convertirNumero(
+                actividad.duracion_horas
+              ),
+
+            horas_obtenidas:
+              convertirNumero(
+                actividad.horas_obtenidas
+              ),
+          })
+        );
+
+      const resumen =
+        calcularResumen(
+          actividadesNormalizadas
+        );
 
       const [certificados] =
         await pool.query(
           `
-            SELECT
-              c.id_certificado,
-              c.id_estudiante,
-              u.nombre AS estudiante,
-              u.correo,
-              c.horas_certificadas,
-              c.fecha_generacion
-            FROM certificados c
-            INNER JOIN usuarios u
-              ON u.id_usuario =
-                 c.id_estudiante
-            WHERE c.id_estudiante = ?
-            ORDER BY
-              c.fecha_generacion DESC,
-              c.id_certificado DESC
+          SELECT
+            id_certificado,
+            id_estudiante,
+            horas_certificadas,
+
+            DATE_FORMAT(
+              fecha_generacion,
+              '%Y-%m-%d %H:%i:%s'
+            ) AS fecha_generacion
+
+          FROM certificados
+
+          WHERE
+            id_estudiante = ?
+
+          ORDER BY
+            fecha_generacion DESC,
+            id_certificado DESC
           `,
-          [id]
+          [
+            idEstudiante,
+          ]
         );
 
       return res.json({
         ok: true,
-        certificados,
+
+        estudiante:
+          usuarios[0],
+
+        resumen,
+
+        actividades:
+          actividadesNormalizadas,
+
+        certificados:
+          certificados.map(
+            (certificado) => ({
+              ...certificado,
+
+              horas_certificadas:
+                convertirNumero(
+                  certificado.horas_certificadas
+                ),
+            })
+          ),
+      });
+    } catch (error) {
+      console.error(
+        "Error al consultar detalle de horas:",
+        error
+      );
+
+      return res.status(500).json({
+        ok: false,
+        mensaje:
+          "No fue posible consultar el detalle de horas deportivas.",
+      });
+    }
+  };
+
+// =====================================================
+// CONSULTAR TODOS LOS CERTIFICADOS
+// =====================================================
+
+const obtenerCertificados =
+  async (req, res) => {
+    try {
+      const [certificados] =
+        await pool.query(`
+          SELECT
+            c.id_certificado,
+
+            c.id_estudiante,
+
+            u.nombre AS estudiante,
+
+            u.correo,
+
+            c.horas_certificadas,
+
+            DATE_FORMAT(
+              c.fecha_generacion,
+              '%Y-%m-%d %H:%i:%s'
+            ) AS fecha_generacion
+
+          FROM certificados c
+
+          INNER JOIN usuarios u
+            ON
+              u.id_usuario =
+              c.id_estudiante
+
+          ORDER BY
+            c.fecha_generacion DESC,
+            c.id_certificado DESC
+        `);
+
+      return res.json({
+        ok: true,
+
+        certificados:
+          certificados.map(
+            (certificado) => ({
+              ...certificado,
+
+              horas_certificadas:
+                convertirNumero(
+                  certificado.horas_certificadas
+                ),
+            })
+          ),
       });
     } catch (error) {
       console.error(
@@ -348,7 +680,7 @@ const obtenerCertificadosEstudiante =
       return res.status(500).json({
         ok: false,
         mensaje:
-          "Error al consultar los certificados",
+          "No fue posible consultar los certificados.",
       });
     }
   };
@@ -357,255 +689,385 @@ const obtenerCertificadosEstudiante =
 // GENERAR CERTIFICADO
 // =====================================================
 
-const generarCertificado = async (
-  req,
-  res
-) => {
-  try {
-    const { id } = req.params;
+const generarCertificado =
+  async (req, res) => {
+    let conexion;
 
-    // -------------------------------------------------
-    // VALIDAR ESTUDIANTE
-    // -------------------------------------------------
+    try {
+      const {
+        id,
+      } = req.params;
 
-    const [estudiantes] =
-      await pool.query(
-        `
+      const idEstudiante =
+        Number(id);
+
+      if (
+        !Number.isInteger(
+          idEstudiante
+        ) ||
+        idEstudiante <= 0
+      ) {
+        return res.status(400).json({
+          ok: false,
+          mensaje:
+            "El estudiante seleccionado no es válido.",
+        });
+      }
+
+      conexion =
+        await pool.getConnection();
+
+      await conexion.beginTransaction();
+
+      const [usuarios] =
+        await conexion.query(
+          `
           SELECT
             id_usuario,
             nombre,
-            correo
+            correo,
+            estado
+
           FROM usuarios
-          WHERE id_usuario = ?
+
+          WHERE
+            id_usuario = ?
             AND rol = 'estudiante'
-        `,
-        [id]
-      );
 
-    if (estudiantes.length === 0) {
-      return res.status(404).json({
-        ok: false,
-        mensaje:
-          "Estudiante no encontrado",
-      });
-    }
+          LIMIT 1
 
-    // -------------------------------------------------
-    // CONSULTAR ACTIVIDADES
-    // -------------------------------------------------
+          FOR UPDATE
+          `,
+          [
+            idEstudiante,
+          ]
+        );
 
-    const [actividades] =
-      await pool.query(
-        `
+      if (
+        usuarios.length === 0
+      ) {
+        await conexion.rollback();
+
+        return res.status(404).json({
+          ok: false,
+          mensaje:
+            "El estudiante no existe.",
+        });
+      }
+
+      const estudiante =
+        usuarios[0];
+
+      if (
+        estudiante.estado !==
+        "activo"
+      ) {
+        await conexion.rollback();
+
+        return res.status(400).json({
+          ok: false,
+          mensaje:
+            "No se puede generar un certificado para un estudiante inactivo.",
+        });
+      }
+
+      const [resultadoHoras] =
+        await conexion.query(
+          `
           SELECT
-            i.asistencia,
-            e.duracion_horas
+
+            ROUND(
+              COALESCE(
+                SUM(
+                  CASE
+                    WHEN i.asistencia = 'Asistió'
+                    THEN ${DURACION_EVENTO_SQL}
+                    ELSE 0
+                  END
+                ),
+                0
+              ),
+              2
+            ) AS horas_acumuladas,
+
+            ROUND(
+              COALESCE(
+                SUM(
+                  CASE
+                    WHEN i.asistencia
+                      IN (
+                        'Asistió',
+                        'No asistió'
+                      )
+                    THEN ${DURACION_EVENTO_SQL}
+                    ELSE 0
+                  END
+                ),
+                0
+              ),
+              2
+            ) AS horas_evaluadas
+
           FROM inscripciones i
+
           INNER JOIN eventos e
-            ON e.id_evento = i.id_evento
-          WHERE i.id_usuario = ?
-        `,
-        [id]
-      );
+            ON
+              e.id_evento =
+              i.id_evento
 
-    // -------------------------------------------------
-    // CALCULAR HORAS Y PORCENTAJE
-    // -------------------------------------------------
+          WHERE
+            i.id_usuario = ?
+          `,
+          [
+            idEstudiante,
+          ]
+        );
 
-    const resumen =
-      calcularResumenHoras(
-        actividades
-      );
+      const horasAcumuladas =
+        convertirNumero(
+          resultadoHoras[0]
+            ?.horas_acumuladas
+        );
 
-    // -------------------------------------------------
-    // IMPEDIR CERTIFICADO CON 0 HORAS
-    // -------------------------------------------------
+      const horasEvaluadas =
+        convertirNumero(
+          resultadoHoras[0]
+            ?.horas_evaluadas
+        );
 
-    if (
-      resumen.horasAsistidas <= 0
-    ) {
-      return res.status(400).json({
-        ok: false,
-        mensaje:
-          "No se puede generar el certificado porque el estudiante no tiene horas deportivas asistidas.",
-      });
-    }
+      const porcentajeAsistencia =
+        horasEvaluadas > 0
+          ? redondear(
+              (
+                horasAcumuladas /
+                horasEvaluadas
+              ) * 100,
+              1
+            )
+          : 0;
 
-    // -------------------------------------------------
-    // VALIDAR 85% MÍNIMO DE ASISTENCIA
-    // -------------------------------------------------
+      if (
+        horasAcumuladas <= 0
+      ) {
+        await conexion.rollback();
 
-    if (
-      resumen.porcentajeAsistencia <
-      PORCENTAJE_MINIMO_CERTIFICADO
-    ) {
-      return res.status(400).json({
-        ok: false,
+        return res.status(400).json({
+          ok: false,
+          mensaje:
+            "El estudiante todavía no tiene horas deportivas asistidas para certificar.",
+        });
+      }
 
-        mensaje:
-          `No se puede generar el certificado. ` +
-          `El estudiante tiene ${resumen.porcentajeAsistencia}% de asistencia ` +
-          `y debe cumplir como mínimo con el ${PORCENTAJE_MINIMO_CERTIFICADO}%.`,
-      });
-    }
+      if (
+        porcentajeAsistencia <
+        PORCENTAJE_MINIMO_CERTIFICADO
+      ) {
+        await conexion.rollback();
 
-    // -------------------------------------------------
-    // REGISTRAR CERTIFICADO
-    // -------------------------------------------------
+        return res.status(400).json({
+          ok: false,
 
-    const [resultado] =
-      await pool.query(
-        `
+          mensaje:
+            `El estudiante tiene ${porcentajeAsistencia}% de asistencia. ` +
+            `Se requiere mínimo ${PORCENTAJE_MINIMO_CERTIFICADO}% para generar el certificado.`,
+        });
+      }
+
+      const [resultado] =
+        await conexion.query(
+          `
           INSERT INTO certificados
           (
             id_estudiante,
             horas_certificadas,
             fecha_generacion
           )
-          VALUES (?, ?, NOW())
-        `,
-        [
-          id,
-          resumen.horasAsistidas,
-        ]
-      );
+          VALUES
+          (
+            ?,
+            ?,
+            NOW()
+          )
+          `,
+          [
+            idEstudiante,
+            horasAcumuladas,
+          ]
+        );
 
-    // -------------------------------------------------
-    // CONSULTAR CERTIFICADO GENERADO
-    // -------------------------------------------------
-
-    const [certificados] =
-      await pool.query(
-        `
+      const [certificados] =
+        await conexion.query(
+          `
           SELECT
             c.id_certificado,
+
             c.id_estudiante,
+
             u.nombre AS estudiante,
+
             u.correo,
+
             c.horas_certificadas,
-            c.fecha_generacion
+
+            DATE_FORMAT(
+              c.fecha_generacion,
+              '%Y-%m-%d %H:%i:%s'
+            ) AS fecha_generacion
+
           FROM certificados c
+
           INNER JOIN usuarios u
-            ON u.id_usuario =
-               c.id_estudiante
-          WHERE c.id_certificado = ?
-        `,
-        [
-          resultado.insertId,
-        ]
+            ON
+              u.id_usuario =
+              c.id_estudiante
+
+          WHERE
+            c.id_certificado = ?
+
+          LIMIT 1
+          `,
+          [
+            resultado.insertId,
+          ]
+        );
+
+      await conexion.commit();
+
+      return res.status(201).json({
+        ok: true,
+
+        mensaje:
+          "Certificado generado correctamente.",
+
+        certificado: {
+          ...certificados[0],
+
+          horas_certificadas:
+            convertirNumero(
+              certificados[0]
+                .horas_certificadas
+            ),
+
+          porcentaje_asistencia:
+            porcentajeAsistencia,
+        },
+      });
+    } catch (error) {
+      if (conexion) {
+        try {
+          await conexion.rollback();
+        } catch {
+          // Sin acción adicional.
+        }
+      }
+
+      console.error(
+        "Error al generar certificado:",
+        error
       );
 
-    return res.status(201).json({
-      ok: true,
-
-      mensaje:
-        "Certificado generado correctamente",
-
-      porcentaje_asistencia:
-        resumen.porcentajeAsistencia,
-
-      certificado:
-        certificados[0],
-    });
-  } catch (error) {
-    console.error(
-      "Error al generar certificado:",
-      error
-    );
-
-    return res.status(500).json({
-      ok: false,
-      mensaje:
-        "Error al generar el certificado",
-    });
-  }
-};
+      return res.status(500).json({
+        ok: false,
+        mensaje:
+          "No fue posible generar el certificado.",
+      });
+    } finally {
+      if (conexion) {
+        conexion.release();
+      }
+    }
+  };
 
 // =====================================================
 // ELIMINAR CERTIFICADO
 // =====================================================
 
-const eliminarCertificado = async (
-  req,
-  res
-) => {
-  try {
-    const {
-      id,
-      idCertificado,
-    } = req.params;
+const eliminarCertificado =
+  async (req, res) => {
+    try {
+      const {
+        id,
+      } = req.params;
 
-    // -------------------------------------------------
-    // BUSCAR CERTIFICADO
-    // -------------------------------------------------
+      const idCertificado =
+        Number(id);
 
-    const [certificados] =
+      if (
+        !Number.isInteger(
+          idCertificado
+        ) ||
+        idCertificado <= 0
+      ) {
+        return res.status(400).json({
+          ok: false,
+          mensaje:
+            "El certificado seleccionado no es válido.",
+        });
+      }
+
+      const [certificados] =
+        await pool.query(
+          `
+          SELECT
+            id_certificado
+          FROM certificados
+          WHERE
+            id_certificado = ?
+          LIMIT 1
+          `,
+          [
+            idCertificado,
+          ]
+        );
+
+      if (
+        certificados.length === 0
+      ) {
+        return res.status(404).json({
+          ok: false,
+          mensaje:
+            "El certificado no existe.",
+        });
+      }
+
       await pool.query(
         `
-          SELECT
-            id_certificado,
-            id_estudiante
-          FROM certificados
-          WHERE id_certificado = ?
-            AND id_estudiante = ?
+        DELETE FROM certificados
+        WHERE
+          id_certificado = ?
         `,
         [
           idCertificado,
-          id,
         ]
       );
 
-    if (certificados.length === 0) {
-      return res.status(404).json({
+      return res.json({
+        ok: true,
+        mensaje:
+          "Certificado eliminado correctamente.",
+      });
+    } catch (error) {
+      console.error(
+        "Error al eliminar certificado:",
+        error
+      );
+
+      return res.status(500).json({
         ok: false,
         mensaje:
-          "Certificado no encontrado",
+          "No fue posible eliminar el certificado.",
       });
     }
-
-    // -------------------------------------------------
-    // ELIMINAR CERTIFICADO
-    // -------------------------------------------------
-
-    await pool.query(
-      `
-        DELETE FROM certificados
-        WHERE id_certificado = ?
-          AND id_estudiante = ?
-      `,
-      [
-        idCertificado,
-        id,
-      ]
-    );
-
-    return res.json({
-      ok: true,
-      mensaje:
-        "Certificado eliminado correctamente",
-    });
-  } catch (error) {
-    console.error(
-      "Error al eliminar certificado:",
-      error
-    );
-
-    return res.status(500).json({
-      ok: false,
-      mensaje:
-        "Error al eliminar el certificado",
-    });
-  }
-};
+  };
 
 // =====================================================
-// EXPORTACIONES
+// EXPORTS
 // =====================================================
 
 module.exports = {
-  obtenerEstudiantes,
-  obtenerHorasEstudiante,
-  obtenerCertificadosEstudiante,
+  obtenerEstudiantesHoras,
+  obtenerDetalleHorasEstudiante,
+  obtenerCertificados,
   generarCertificado,
   eliminarCertificado,
 };

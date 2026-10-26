@@ -1,81 +1,69 @@
-const express = require("express");
+const express =
+  require("express");
 
 const {
-  obtenerEstudiantes,
-  obtenerHorasEstudiante,
-  obtenerCertificadosEstudiante,
+  obtenerEstudiantesHoras,
+  obtenerDetalleHorasEstudiante,
+  obtenerCertificados,
   generarCertificado,
   eliminarCertificado,
-} = require("../controllers/horasController");
+} = require(
+  "../controllers/horasController"
+);
 
 const {
   verificarToken,
   autorizarRoles,
-} = require("../middleware/authMiddleware");
+} = require(
+  "../middleware/authMiddleware"
+);
 
-const router = express.Router();
+const router =
+  express.Router();
 
 // =====================================================
-// PROTECCIÓN PARA COORDINADOR
+// TODAS LAS RUTAS SON DEL COORDINADOR
 // =====================================================
 
-const protegerCoordinador = [
+router.use(
   verificarToken,
-  autorizarRoles("coordinador"),
-];
+  autorizarRoles(
+    "coordinador"
+  )
+);
 
 // =====================================================
-// OBTENER ESTUDIANTES
+// ESTUDIANTES Y HORAS
 // =====================================================
 
 router.get(
   "/estudiantes",
-  ...protegerCoordinador,
-  obtenerEstudiantes
+  obtenerEstudiantesHoras
+);
+
+router.get(
+  "/estudiantes/:id",
+  obtenerDetalleHorasEstudiante
 );
 
 // =====================================================
-// OBTENER HORAS DEL ESTUDIANTE
+// CERTIFICADOS
 // =====================================================
 
 router.get(
-  "/:id",
-  ...protegerCoordinador,
-  obtenerHorasEstudiante
+  "/certificados",
+  obtenerCertificados
 );
-
-// =====================================================
-// OBTENER CERTIFICADOS DEL ESTUDIANTE
-// =====================================================
-
-router.get(
-  "/:id/certificados",
-  ...protegerCoordinador,
-  obtenerCertificadosEstudiante
-);
-
-// =====================================================
-// GENERAR CERTIFICADO
-// =====================================================
 
 router.post(
-  "/:id/certificados",
-  ...protegerCoordinador,
+  "/estudiantes/:id/certificados",
   generarCertificado
 );
 
-// =====================================================
-// ELIMINAR CERTIFICADO
-// =====================================================
-
 router.delete(
-  "/:id/certificados/:idCertificado",
-  ...protegerCoordinador,
+  "/certificados/:id",
   eliminarCertificado
 );
 
-// =====================================================
-// EXPORTAR ROUTER
-// =====================================================
-
-module.exports = router;
+module.exports =
+  router;

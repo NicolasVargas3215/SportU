@@ -1,64 +1,277 @@
-const express = require("express");
-const cors = require("cors");
+const express =
+  require("express");
+
+const cors =
+  require("cors");
+
 require("dotenv").config();
 
-const pool = require("./src/config/db");
-const deporteRoutes = require("./src/routes/deporteRoutes");
-const authRoutes = require("./src/routes/authRoutes");
-const eventoRoutes = require("./src/routes/eventoRoutes");
-const inventarioRoutes = require("./src/routes/inventarioRoutes");
-const prestamoRoutes = require("./src/routes/prestamoRoutes");
-const horasRoutes = require("./src/routes/horasRoutes");
-const inscripcionRoutes = require("./src/routes/inscripcionRoutes");
+const pool =
+  require("./src/config/db");
 
-const app = express();
+// =====================================================
+// RUTAS
+// =====================================================
 
-const PORT = process.env.PORT || 3000;
+const authRoutes =
+  require(
+    "./src/routes/authRoutes"
+  );
 
-// Middlewares
-app.use(cors());
-app.use(express.json());
+const deporteRoutes =
+  require(
+    "./src/routes/deporteRoutes"
+  );
 
-// Ruta principal
-app.get("/", (req, res) => {
-  res.json({
-    mensaje: "API de SPORTU funciona correctamente",
-  });
-});
+const eventoRoutes =
+  require(
+    "./src/routes/eventoRoutes"
+  );
 
-// Ruta para comprobar la conexión con MySQL
-app.get("/api/db-test", async (req, res) => {
-  try {
-    const [resultado] = await pool.query(
-      "SELECT DATABASE() AS base_datos, VERSION() AS version_mysql"
-    );
+const inscripcionRoutes =
+  require(
+    "./src/routes/inscripcionRoutes"
+  );
 
-    res.json({
-      conexion: true,
-      mensaje: "SPORTU está conectado correctamente con MySQL",
-      base_datos: resultado[0].base_datos,
-      version_mysql: resultado[0].version_mysql,
-    });
-  } catch (error) {
-    console.error("Error de conexión con MySQL:", error);
+const inventarioRoutes =
+  require(
+    "./src/routes/inventarioRoutes"
+  );
 
-    res.status(500).json({
-      conexion: false,
-      mensaje: "No fue posible conectar SPORTU con MySQL",
+const prestamoRoutes =
+  require(
+    "./src/routes/prestamoRoutes"
+  );
+
+const horasRoutes =
+  require(
+    "./src/routes/horasRoutes"
+  );
+
+const docenteRoutes =
+  require(
+    "./src/routes/docenteRoutes"
+  );
+
+const estudianteRoutes =
+  require(
+    "./src/routes/estudianteRoutes"
+  );
+
+const dashboardRoutes =
+  require(
+    "./src/routes/dashboardRoutes"
+  );
+
+// =====================================================
+// APP
+// =====================================================
+
+const app =
+  express();
+
+const PORT =
+  process.env.PORT ||
+  3000;
+
+// =====================================================
+// MIDDLEWARES
+// =====================================================
+
+app.use(
+  cors()
+);
+
+app.use(
+  express.json()
+);
+
+// =====================================================
+// PRINCIPAL
+// =====================================================
+
+app.get(
+  "/",
+  (
+    req,
+    res
+  ) => {
+    return res.json({
+      ok: true,
+
+      mensaje:
+        "API de SportU funciona correctamente",
     });
   }
-});
+);
 
-// Rutas
-app.use("/api/deportes", deporteRoutes);
-app.use("/api/auth", authRoutes);
-app.use("/api/eventos", eventoRoutes);
-app.use("/api/inventario", inventarioRoutes);
-app.use("/api/prestamos", prestamoRoutes);
-app.use("/api/horas", horasRoutes);
-app.use("/api/inscripciones", inscripcionRoutes);
+// =====================================================
+// PRUEBA BD
+// =====================================================
 
-// Iniciar servidor
-app.listen(PORT, () => {
-  console.log(`Servidor SPORTU ejecutándose en http://localhost:${PORT}`);
-});
+app.get(
+  "/api/db-test",
+  async (
+    req,
+    res
+  ) => {
+    try {
+      const [
+        resultado,
+      ] =
+        await pool.query(
+          `
+          SELECT
+            DATABASE()
+              AS base_datos,
+
+            VERSION()
+              AS version_mysql
+          `
+        );
+
+      return res.json({
+        conexion: true,
+
+        mensaje:
+          "SportU está conectado correctamente con MySQL",
+
+        base_datos:
+          resultado[0]
+            .base_datos,
+
+        version_mysql:
+          resultado[0]
+            .version_mysql,
+      });
+    } catch (error) {
+      console.error(
+        "Error de conexión con MySQL:",
+        error
+      );
+
+      return res
+        .status(500)
+        .json({
+          conexion: false,
+
+          mensaje:
+            "No fue posible conectar SportU con MySQL",
+        });
+    }
+  }
+);
+
+// =====================================================
+// ENDPOINTS
+// =====================================================
+
+app.use(
+  "/api/auth",
+  authRoutes
+);
+
+app.use(
+  "/api/deportes",
+  deporteRoutes
+);
+
+app.use(
+  "/api/eventos",
+  eventoRoutes
+);
+
+app.use(
+  "/api/inscripciones",
+  inscripcionRoutes
+);
+
+app.use(
+  "/api/inventario",
+  inventarioRoutes
+);
+
+app.use(
+  "/api/prestamos",
+  prestamoRoutes
+);
+
+app.use(
+  "/api/horas",
+  horasRoutes
+);
+
+app.use(
+  "/api/docente",
+  docenteRoutes
+);
+
+app.use(
+  "/api/estudiante",
+  estudianteRoutes
+);
+
+app.use(
+  "/api/dashboard",
+  dashboardRoutes
+);
+
+// =====================================================
+// 404
+// =====================================================
+
+app.use(
+  (
+    req,
+    res
+  ) => {
+    return res
+      .status(404)
+      .json({
+        ok: false,
+
+        mensaje:
+          "La ruta solicitada no existe.",
+      });
+  }
+);
+
+// =====================================================
+// ERROR GENERAL
+// =====================================================
+
+app.use(
+  (
+    error,
+    req,
+    res,
+    next
+  ) => {
+    console.error(
+      "Error general:",
+      error
+    );
+
+    return res
+      .status(500)
+      .json({
+        ok: false,
+
+        mensaje:
+          "Ocurrió un error interno en SportU.",
+      });
+  }
+);
+
+// =====================================================
+// SERVIDOR
+// =====================================================
+
+app.listen(
+  PORT,
+  () => {
+    console.log(
+      `Servidor SportU ejecutándose en http://localhost:${PORT}`
+    );
+  }
+);

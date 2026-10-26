@@ -1,39 +1,273 @@
 import {
   useEffect,
+  useMemo,
   useState,
 } from "react";
 
 import {
-  obtenerEstudiantes,
-  obtenerHorasEstudiante,
-  obtenerCertificadosEstudiante,
-  generarCertificado,
+  FaCalendarAlt,
+  FaCertificate,
+  FaCheckCircle,
+  FaClock,
+  FaEye,
+  FaExclamationTriangle,
+  FaPrint,
+  FaSearch,
+  FaTimes,
+  FaTrash,
+  FaTrophy,
+  FaUsers,
+} from "react-icons/fa";
+
+import {
   eliminarCertificado,
+  generarCertificado,
+  obtenerCertificados,
+  obtenerDetalleHorasEstudiante,
+  obtenerEstudiantesHoras,
 } from "../../services/horasService";
 
+import "./horasPage.css";
+
+// =====================================================
+// HELPERS
+// =====================================================
+
+const convertirNumero =
+  (valor) => {
+    const numero =
+      Number(valor);
+
+    return Number.isFinite(
+      numero
+    )
+      ? numero
+      : 0;
+  };
+
+const formatearHoras =
+  (valor) => {
+    const horas =
+      convertirNumero(
+        valor
+      );
+
+    if (
+      Number.isInteger(
+        horas
+      )
+    ) {
+      return `${horas} h`;
+    }
+
+    return `${horas
+      .toFixed(2)
+      .replace(
+        /\.?0+$/,
+        ""
+      )} h`;
+  };
+
+const formatearFecha =
+  (fecha) => {
+    if (!fecha) {
+      return "—";
+    }
+
+    const valor =
+      String(fecha).replace(
+        " ",
+        "T"
+      );
+
+    const fechaObjeto =
+      new Date(valor);
+
+    if (
+      Number.isNaN(
+        fechaObjeto.getTime()
+      )
+    ) {
+      return fecha;
+    }
+
+    return fechaObjeto
+      .toLocaleDateString(
+        "es-CO",
+        {
+          day: "2-digit",
+          month: "long",
+          year: "numeric",
+        }
+      );
+  };
+
+const formatearFechaHora =
+  (fecha) => {
+    if (!fecha) {
+      return "—";
+    }
+
+    const valor =
+      String(fecha).replace(
+        " ",
+        "T"
+      );
+
+    const fechaObjeto =
+      new Date(valor);
+
+    if (
+      Number.isNaN(
+        fechaObjeto.getTime()
+      )
+    ) {
+      return fecha;
+    }
+
+    return fechaObjeto
+      .toLocaleString(
+        "es-CO",
+        {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        }
+      );
+  };
+
+// =====================================================
+// CONTENIDO DEL CERTIFICADO
+// =====================================================
+
+function CertificadoContenido({
+  certificado,
+}) {
+  if (!certificado) {
+    return null;
+  }
+
+  return (
+    <div className="hours-certificate-document">
+
+      <div className="hours-certificate-top">
+
+        <div className="hours-certificate-logo">
+          <img
+            src="/logo-uniautonoma.jpg"
+            alt="Uniautónoma del Cauca"
+          />
+        </div>
+
+        <div className="hours-certificate-university">
+
+          <span>
+            UNIVERSIDAD AUTÓNOMA DEL CAUCA
+          </span>
+
+          <strong>
+            SportU
+          </strong>
+
+          <small>
+            Gestión deportiva
+          </small>
+
+        </div>
+
+      </div>
+
+      <div className="hours-certificate-gold-line" />
+
+      <div className="hours-certificate-body">
+
+        <span className="hours-certificate-label">
+          CERTIFICADO
+        </span>
+
+        <h2>
+          Horas deportivas
+        </h2>
+
+        <p className="hours-certificate-intro">
+          El área de Deportes certifica que
+        </p>
+
+        <h3>
+          {certificado.estudiante}
+        </h3>
+
+        <p className="hours-certificate-text">
+          registra un total de
+        </p>
+
+        <div className="hours-certificate-hours">
+          {formatearHoras(
+            certificado.horas_certificadas
+          )}
+        </div>
+
+        <p className="hours-certificate-text">
+          de participación deportiva registradas
+          en el sistema SportU.
+        </p>
+
+        <div className="hours-certificate-date">
+          Generado el{" "}
+          <strong>
+            {formatearFecha(
+              certificado.fecha_generacion
+            )}
+          </strong>
+        </div>
+
+      </div>
+
+      <div className="hours-certificate-footer">
+
+        <div>
+          <strong>
+            SportU
+          </strong>
+
+          <span>
+            Sistema de Registro de Eventos Deportivos
+          </span>
+        </div>
+
+        <div>
+          <span>
+            Certificado Nº
+          </span>
+
+          <strong>
+            {certificado.id_certificado}
+          </strong>
+        </div>
+
+      </div>
+
+    </div>
+  );
+}
+
+// =====================================================
+// COMPONENTE
+// =====================================================
+
 function HorasPage() {
-  // =====================================================
-  // ESTADOS
-  // =====================================================
+  const [
+    pestana,
+    setPestana,
+  ] = useState(
+    "horas"
+  );
 
   const [
     estudiantes,
     setEstudiantes,
-  ] = useState([]);
-
-  const [
-    idEstudiante,
-    setIdEstudiante,
-  ] = useState("");
-
-  const [
-    estudiante,
-    setEstudiante,
-  ] = useState(null);
-
-  const [
-    actividades,
-    setActividades,
   ] = useState([]);
 
   const [
@@ -42,262 +276,272 @@ function HorasPage() {
   ] = useState([]);
 
   const [
-    certificadoSeleccionado,
-    setCertificadoSeleccionado,
+    detalle,
+    setDetalle,
   ] = useState(null);
 
   const [
-    totalHoras,
-    setTotalHoras,
-  ] = useState(0);
+    estudianteSeleccionado,
+    setEstudianteSeleccionado,
+  ] = useState(null);
 
   const [
-    horasEvaluadas,
-    setHorasEvaluadas,
-  ] = useState(0);
+    certificadoVista,
+    setCertificadoVista,
+  ] = useState(null);
 
   const [
-    porcentajeAsistencia,
-    setPorcentajeAsistencia,
-  ] = useState(0);
+    busqueda,
+    setBusqueda,
+  ] = useState("");
 
   const [
-    porcentajeMinimo,
-    setPorcentajeMinimo,
-  ] = useState(85);
+    filtro,
+    setFiltro,
+  ] = useState(
+    "todos"
+  );
 
   const [
-    puedeGenerarCertificado,
-    setPuedeGenerarCertificado,
-  ] = useState(false);
-
-  const [
-    cargandoEstudiantes,
-    setCargandoEstudiantes,
+    cargando,
+    setCargando,
   ] = useState(true);
 
   const [
-    cargandoInformacion,
-    setCargandoInformacion,
+    cargandoDetalle,
+    setCargandoDetalle,
   ] = useState(false);
 
   const [
-    generando,
-    setGenerando,
+    procesando,
+    setProcesando,
   ] = useState(false);
-
-  const [
-    mensaje,
-    setMensaje,
-  ] = useState("");
 
   const [
     error,
     setError,
   ] = useState("");
 
-  // =====================================================
-  // CARGAR ESTUDIANTES
-  // =====================================================
+  const [
+    exito,
+    setExito,
+  ] = useState("");
 
-  const cargarEstudiantes = async () => {
-    try {
-      setCargandoEstudiantes(true);
-      setError("");
-
-      const datos =
-        await obtenerEstudiantes();
-
-      setEstudiantes(
-        Array.isArray(datos)
-          ? datos
-          : []
-      );
-    } catch (err) {
-      console.error(err);
-
-      setError(
-        err.message ||
-          "No fue posible cargar los estudiantes"
-      );
-    } finally {
-      setCargandoEstudiantes(false);
-    }
-  };
+  const [
+    porcentajeMinimo,
+    setPorcentajeMinimo,
+  ] = useState(85);
 
   // =====================================================
-  // CARGA INICIAL
+  // CARGAR INFORMACIÓN PRINCIPAL
   // =====================================================
+
+  const cargarDatos =
+    async () => {
+      try {
+        setCargando(true);
+        setError("");
+
+        const [
+          datosHoras,
+          datosCertificados,
+        ] =
+          await Promise.all([
+            obtenerEstudiantesHoras(),
+            obtenerCertificados(),
+          ]);
+
+        setEstudiantes(
+          datosHoras.estudiantes ||
+            []
+        );
+
+        setPorcentajeMinimo(
+          Number(
+            datosHoras.porcentaje_minimo
+          ) || 85
+        );
+
+        setCertificados(
+          datosCertificados.certificados ||
+            []
+        );
+      } catch (err) {
+        setError(
+          err.message ||
+            "No fue posible cargar la información."
+        );
+      } finally {
+        setCargando(false);
+      }
+    };
 
   useEffect(() => {
-    cargarEstudiantes();
+    cargarDatos();
   }, []);
 
   // =====================================================
-  // LIMPIAR INFORMACIÓN
+  // FILTRAR ESTUDIANTES
   // =====================================================
 
-  const limpiarInformacion = () => {
-    setEstudiante(null);
+  const estudiantesFiltrados =
+    useMemo(() => {
+      const texto =
+        busqueda
+          .trim()
+          .toLowerCase();
 
-    setActividades([]);
+      return estudiantes.filter(
+        (estudiante) => {
+          const coincideBusqueda =
+            !texto ||
+            estudiante.nombre
+              ?.toLowerCase()
+              .includes(
+                texto
+              ) ||
+            estudiante.correo
+              ?.toLowerCase()
+              .includes(
+                texto
+              );
 
-    setCertificados([]);
+          let coincideFiltro =
+            true;
 
-    setCertificadoSeleccionado(
-      null
-    );
+          if (
+            filtro ===
+            "elegibles"
+          ) {
+            coincideFiltro =
+              Boolean(
+                estudiante.elegible_certificado
+              );
+          }
 
-    setTotalHoras(0);
+          if (
+            filtro ===
+            "no_elegibles"
+          ) {
+            coincideFiltro =
+              !estudiante.elegible_certificado;
+          }
 
-    setHorasEvaluadas(0);
+          if (
+            filtro ===
+            "con_horas"
+          ) {
+            coincideFiltro =
+              convertirNumero(
+                estudiante.horas_acumuladas
+              ) > 0;
+          }
 
-    setPorcentajeAsistencia(0);
-
-    setPorcentajeMinimo(85);
-
-    setPuedeGenerarCertificado(
-      false
-    );
-
-    setMensaje("");
-
-    setError("");
-  };
+          return (
+            coincideBusqueda &&
+            coincideFiltro
+          );
+        }
+      );
+    }, [
+      estudiantes,
+      busqueda,
+      filtro,
+    ]);
 
   // =====================================================
-  // CAMBIO DE ESTUDIANTE
+  // RESUMEN GENERAL
   // =====================================================
 
-  const manejarCambioEstudiante = (
-    event
-  ) => {
-    const value =
-      event.target.value;
+  const resumenGeneral =
+    useMemo(() => {
+      const totalHoras =
+        estudiantes.reduce(
+          (
+            acumulado,
+            estudiante
+          ) =>
+            acumulado +
+            convertirNumero(
+              estudiante.horas_acumuladas
+            ),
+          0
+        );
 
-    setIdEstudiante(value);
+      const elegibles =
+        estudiantes.filter(
+          (estudiante) =>
+            estudiante.elegible_certificado
+        ).length;
 
-    limpiarInformacion();
-  };
+      return {
+        estudiantes:
+          estudiantes.length,
+
+        totalHoras,
+
+        elegibles,
+
+        certificados:
+          certificados.length,
+      };
+    }, [
+      estudiantes,
+      certificados,
+    ]);
 
   // =====================================================
-  // BUSCAR ESTUDIANTE
+  // VER ESTUDIANTE
   // =====================================================
 
-  const buscarEstudiante = async () => {
-    if (!idEstudiante) {
-      setError(
-        "Debes seleccionar un estudiante."
-      );
+  const verEstudiante =
+    async (
+      estudiante
+    ) => {
+      try {
+        setError("");
+        setExito("");
 
-      return;
-    }
+        setEstudianteSeleccionado(
+          estudiante
+        );
 
-    try {
-      setCargandoInformacion(true);
+        setCargandoDetalle(
+          true
+        );
 
-      setError("");
+        const datos =
+          await obtenerDetalleHorasEstudiante(
+            estudiante.id_usuario
+          );
 
-      setMensaje("");
+        setDetalle(
+          datos
+        );
+      } catch (err) {
+        setError(
+          err.message ||
+            "No fue posible consultar al estudiante."
+        );
+      } finally {
+        setCargandoDetalle(
+          false
+        );
+      }
+    };
 
-      const [
-        datosHoras,
-        datosCertificados,
-      ] = await Promise.all([
-        obtenerHorasEstudiante(
-          idEstudiante
-        ),
+  // =====================================================
+  // CERRAR DETALLE
+  // =====================================================
 
-        obtenerCertificadosEstudiante(
-          idEstudiante
-        ),
-      ]);
+  const cerrarDetalle =
+    () => {
+      setDetalle(null);
 
-      setEstudiante(
-        datosHoras.estudiante ||
-          null
-      );
-
-      setActividades(
-        Array.isArray(
-          datosHoras.actividades
-        )
-          ? datosHoras.actividades
-          : []
-      );
-
-      setTotalHoras(
-        Number(
-          datosHoras.total_horas
-        ) || 0
-      );
-
-      setHorasEvaluadas(
-        Number(
-          datosHoras.horas_evaluadas
-        ) || 0
-      );
-
-      setPorcentajeAsistencia(
-        Number(
-          datosHoras.porcentaje_asistencia
-        ) || 0
-      );
-
-      setPorcentajeMinimo(
-        Number(
-          datosHoras.porcentaje_minimo
-        ) || 85
-      );
-
-      setPuedeGenerarCertificado(
-        Boolean(
-          datosHoras.puede_generar_certificado
-        )
-      );
-
-      setCertificados(
-        Array.isArray(
-          datosCertificados
-        )
-          ? datosCertificados
-          : []
-      );
-
-      setCertificadoSeleccionado(
+      setEstudianteSeleccionado(
         null
       );
-    } catch (err) {
-      console.error(err);
-
-      setError(
-        err.message ||
-          "No fue posible consultar la información del estudiante"
-      );
-
-      setEstudiante(null);
-
-      setActividades([]);
-
-      setCertificados([]);
-
-      setCertificadoSeleccionado(
-        null
-      );
-
-      setTotalHoras(0);
-
-      setHorasEvaluadas(0);
-
-      setPorcentajeAsistencia(0);
-
-      setPuedeGenerarCertificado(
-        false
-      );
-    } finally {
-      setCargandoInformacion(false);
-    }
-  };
+    };
 
   // =====================================================
   // GENERAR CERTIFICADO
@@ -305,50 +549,15 @@ function HorasPage() {
 
   const manejarGenerarCertificado =
     async () => {
-      if (!idEstudiante) {
-        setError(
-          "Debes seleccionar un estudiante."
-        );
-
-        return;
-      }
-
-      if (totalHoras <= 0) {
-        setError(
-          "El estudiante no tiene horas deportivas asistidas."
-        );
-
-        return;
-      }
-
       if (
-        porcentajeAsistencia <
-        porcentajeMinimo
+        !estudianteSeleccionado
       ) {
-        setError(
-          `El estudiante tiene ${formatearPorcentaje(
-            porcentajeAsistencia
-          )}% de asistencia y debe cumplir como mínimo con el ${porcentajeMinimo}%.`
-        );
-
-        return;
-      }
-
-      if (
-        !puedeGenerarCertificado
-      ) {
-        setError(
-          "El estudiante no cumple los requisitos para generar el certificado."
-        );
-
         return;
       }
 
       const confirmar =
         window.confirm(
-          `¿Deseas generar un certificado por ${formatearHoras(
-            totalHoras
-          )} hora(s) deportivas?`
+          `¿Generar certificado de horas deportivas para ${estudianteSeleccionado.nombre}?`
         );
 
       if (!confirmar) {
@@ -356,88 +565,55 @@ function HorasPage() {
       }
 
       try {
-        setGenerando(true);
-
+        setProcesando(true);
         setError("");
-
-        setMensaje("");
+        setExito("");
 
         const resultado =
           await generarCertificado(
-            idEstudiante
+            estudianteSeleccionado.id_usuario
           );
 
-        setMensaje(
-          "Certificado generado correctamente."
+        setExito(
+          resultado.mensaje ||
+            "Certificado generado correctamente."
         );
 
-        if (
-          resultado?.certificado
-        ) {
-          setCertificadoSeleccionado(
-            resultado.certificado
-          );
-        }
+        setCertificadoVista(
+          resultado.certificado
+        );
 
-        const certificadosActualizados =
-          await obtenerCertificadosEstudiante(
-            idEstudiante
+        await cargarDatos();
+
+        const datosActualizados =
+          await obtenerDetalleHorasEstudiante(
+            estudianteSeleccionado.id_usuario
           );
 
-        setCertificados(
-          Array.isArray(
-            certificadosActualizados
-          )
-            ? certificadosActualizados
-            : []
+        setDetalle(
+          datosActualizados
         );
       } catch (err) {
-        console.error(err);
-
         setError(
           err.message ||
-            "No fue posible generar el certificado"
+            "No fue posible generar el certificado."
         );
       } finally {
-        setGenerando(false);
+        setProcesando(false);
       }
     };
-
-  // =====================================================
-  // VER CERTIFICADO
-  // =====================================================
-
-  const verCertificado = (
-    certificado
-  ) => {
-    setCertificadoSeleccionado(
-      certificado
-    );
-
-    setError("");
-
-    setMensaje("");
-  };
-
-  // =====================================================
-  // CERRAR CERTIFICADO
-  // =====================================================
-
-  const cerrarCertificado = () => {
-    setCertificadoSeleccionado(
-      null
-    );
-  };
 
   // =====================================================
   // ELIMINAR CERTIFICADO
   // =====================================================
 
   const manejarEliminarCertificado =
-    async (idCertificado) => {
+    async (
+      certificado
+    ) => {
       const confirmar =
         window.confirm(
-          "¿Seguro que deseas eliminar este certificado? Esta acción no se puede deshacer."
+          `¿Eliminar el certificado Nº ${certificado.id_certificado} de ${certificado.estudiante}?`
         );
 
       if (!confirmar) {
@@ -445,440 +621,432 @@ function HorasPage() {
       }
 
       try {
+        setProcesando(true);
         setError("");
+        setExito("");
 
-        setMensaje("");
+        const resultado =
+          await eliminarCertificado(
+            certificado.id_certificado
+          );
 
-        await eliminarCertificado(
-          idEstudiante,
-          idCertificado
-        );
-
-        setMensaje(
-          "Certificado eliminado correctamente."
+        setExito(
+          resultado.mensaje ||
+            "Certificado eliminado correctamente."
         );
 
         if (
-          certificadoSeleccionado?.id_certificado ===
-          idCertificado
+          certificadoVista
+            ?.id_certificado ===
+          certificado.id_certificado
         ) {
-          setCertificadoSeleccionado(
+          setCertificadoVista(
             null
           );
         }
 
-        const certificadosActualizados =
-          await obtenerCertificadosEstudiante(
-            idEstudiante
+        await cargarDatos();
+
+        if (
+          estudianteSeleccionado
+        ) {
+          const detalleActualizado =
+            await obtenerDetalleHorasEstudiante(
+              estudianteSeleccionado.id_usuario
+            );
+
+          setDetalle(
+            detalleActualizado
           );
-
-        setCertificados(
-          Array.isArray(
-            certificadosActualizados
-          )
-            ? certificadosActualizados
-            : []
-        );
+        }
       } catch (err) {
-        console.error(err);
-
         setError(
           err.message ||
-            "No fue posible eliminar el certificado"
+            "No fue posible eliminar el certificado."
         );
+      } finally {
+        setProcesando(false);
       }
     };
 
   // =====================================================
-  // FORMATEAR FECHA
+  // IMPRIMIR
   // =====================================================
 
-  const formatearFecha = (
-    fecha
-  ) => {
-    if (!fecha) {
-      return "-";
-    }
-
-    const fechaTexto =
-      String(fecha).substring(
-        0,
-        10
+  const imprimirCertificado =
+    (certificado) => {
+      setCertificadoVista(
+        certificado
       );
 
-    const partes =
-      fechaTexto.split("-");
-
-    if (partes.length !== 3) {
-      return fechaTexto;
-    }
-
-    return `${partes[2]}/${partes[1]}/${partes[0]}`;
-  };
-
-  // =====================================================
-  // FORMATEAR HORAS
-  // =====================================================
-
-  const formatearHoras = (
-    horas
-  ) => {
-    const numero =
-      Number(horas);
-
-    if (
-      Number.isNaN(numero)
-    ) {
-      return "0";
-    }
-
-    if (
-      Number.isInteger(numero)
-    ) {
-      return numero;
-    }
-
-    return numero.toFixed(2);
-  };
-
-  // =====================================================
-  // FORMATEAR PORCENTAJE
-  // =====================================================
-
-  const formatearPorcentaje = (
-    porcentaje
-  ) => {
-    const numero =
-      Number(porcentaje);
-
-    if (
-      Number.isNaN(numero)
-    ) {
-      return "0";
-    }
-
-    if (
-      Number.isInteger(numero)
-    ) {
-      return numero;
-    }
-
-    return numero.toFixed(2);
-  };
-
-  // =====================================================
-  // BADGE ASISTENCIA
-  // =====================================================
-
-  const obtenerBadgeAsistencia = (
-    asistencia
-  ) => {
-    const estado =
-      String(
-        asistencia || ""
-      )
-        .normalize("NFD")
-        .replace(
-          /[\u0300-\u036f]/g,
-          ""
-        )
-        .toLowerCase();
-
-    if (
-      estado.includes(
-        "no asist"
-      )
-    ) {
-      return (
-        <span className="badge bg-danger">
-          No asistió
-        </span>
+      window.setTimeout(
+        () => {
+          window.print();
+        },
+        120
       );
-    }
-
-    if (
-      estado.includes(
-        "asisti"
-      )
-    ) {
-      return (
-        <span className="badge bg-success">
-          Asistió
-        </span>
-      );
-    }
-
-    return (
-      <span className="badge bg-secondary">
-        Pendiente
-      </span>
-    );
-  };
+    };
 
   // =====================================================
   // RENDER
   // =====================================================
 
   return (
-    <div className="container-fluid py-4">
+    <div className="hours-page">
 
-      {/* ENCABEZADO */}
+      {/* HEADER */}
 
-      <div className="mb-4">
+      <section className="hours-header">
 
-        <h2 className="mb-1">
-          Horas deportivas
-        </h2>
+        <div>
 
-        <p className="text-muted mb-0">
-          Consulta las horas acumuladas,
-          porcentaje de asistencia y
-          certificados de los estudiantes.
-        </p>
+          <span className="hours-eyebrow">
+            GESTIÓN DEPORTIVA
+          </span>
 
-      </div>
+          <h1>
+            Horas y certificados
+          </h1>
+
+          <p>
+            Consulta las horas deportivas acumuladas,
+            revisa el porcentaje de asistencia y
+            genera los certificados de los estudiantes.
+          </p>
+
+        </div>
+
+        <div className="hours-rule-card">
+
+          <FaTrophy />
+
+          <div>
+            <span>
+              Requisito para certificado
+            </span>
+
+            <strong>
+              {porcentajeMinimo}% de asistencia
+            </strong>
+          </div>
+
+        </div>
+
+      </section>
 
       {/* MENSAJES */}
 
-      {mensaje && (
-        <div
-          className="alert alert-success"
-          role="alert"
-        >
-          {mensaje}
-        </div>
-      )}
-
       {error && (
-        <div
-          className="alert alert-danger"
-          role="alert"
-        >
-          {error}
+        <div className="hours-message hours-message-error">
+
+          <FaExclamationTriangle />
+
+          <span>
+            {error}
+          </span>
+
+          <button
+            type="button"
+            onClick={() =>
+              setError("")
+            }
+          >
+            <FaTimes />
+          </button>
+
         </div>
       )}
 
-      {/* SELECCIONAR ESTUDIANTE */}
+      {exito && (
+        <div className="hours-message hours-message-success">
 
-      <div className="card shadow-sm mb-4">
+          <FaCheckCircle />
 
-        <div className="card-body">
+          <span>
+            {exito}
+          </span>
 
-          <h5 className="card-title mb-3">
-            Consultar estudiante
-          </h5>
+          <button
+            type="button"
+            onClick={() =>
+              setExito("")
+            }
+          >
+            <FaTimes />
+          </button>
 
-          <div className="row align-items-end">
+        </div>
+      )}
 
-            <div className="col-md-9">
+      {/* RESUMEN */}
 
-              <label
-                htmlFor="estudiante"
-                className="form-label"
-              >
-                Estudiante
-              </label>
+      <section className="hours-summary-grid">
 
-              <select
-                id="estudiante"
-                className="form-select"
-                value={
-                  idEstudiante
-                }
-                onChange={
-                  manejarCambioEstudiante
-                }
-                disabled={
-                  cargandoEstudiantes
-                }
-              >
+        <article className="hours-summary-card">
 
-                <option value="">
-                  {cargandoEstudiantes
-                    ? "Cargando estudiantes..."
-                    : "Seleccionar estudiante"}
-                </option>
-
-                {estudiantes.map(
-                  (item) => (
-                    <option
-                      key={
-                        item.id_usuario
-                      }
-                      value={
-                        item.id_usuario
-                      }
-                    >
-                      {item.nombre}
-                      {" - "}
-                      {item.correo}
-                    </option>
-                  )
-                )}
-
-              </select>
-
-            </div>
-
-            <div className="col-md-3 mt-3 mt-md-0">
-
-              <button
-                type="button"
-                className="btn btn-primary w-100"
-                onClick={
-                  buscarEstudiante
-                }
-                disabled={
-                  !idEstudiante ||
-                  cargandoInformacion
-                }
-              >
-                {cargandoInformacion
-                  ? "Consultando..."
-                  : "Buscar"}
-              </button>
-
-            </div>
-
+          <div className="hours-summary-icon blue">
+            <FaUsers />
           </div>
 
-        </div>
+          <div>
+            <span>
+              Estudiantes
+            </span>
+
+            <strong>
+              {resumenGeneral.estudiantes}
+            </strong>
+
+            <small>
+              Activos registrados
+            </small>
+          </div>
+
+        </article>
+
+        <article className="hours-summary-card">
+
+          <div className="hours-summary-icon gold">
+            <FaClock />
+          </div>
+
+          <div>
+            <span>
+              Horas acumuladas
+            </span>
+
+            <strong>
+              {formatearHoras(
+                resumenGeneral.totalHoras
+              )}
+            </strong>
+
+            <small>
+              Asistencias confirmadas
+            </small>
+          </div>
+
+        </article>
+
+        <article className="hours-summary-card">
+
+          <div className="hours-summary-icon green">
+            <FaCheckCircle />
+          </div>
+
+          <div>
+            <span>
+              Elegibles
+            </span>
+
+            <strong>
+              {resumenGeneral.elegibles}
+            </strong>
+
+            <small>
+              Cumplen el {porcentajeMinimo}%
+            </small>
+          </div>
+
+        </article>
+
+        <article className="hours-summary-card">
+
+          <div className="hours-summary-icon purple">
+            <FaCertificate />
+          </div>
+
+          <div>
+            <span>
+              Certificados
+            </span>
+
+            <strong>
+              {resumenGeneral.certificados}
+            </strong>
+
+            <small>
+              Generados en SportU
+            </small>
+          </div>
+
+        </article>
+
+      </section>
+
+      {/* TABS */}
+
+      <div className="hours-tabs">
+
+        <button
+          type="button"
+          className={
+            pestana === "horas"
+              ? "active"
+              : ""
+          }
+          onClick={() =>
+            setPestana(
+              "horas"
+            )
+          }
+        >
+          <FaClock />
+
+          Horas deportivas
+        </button>
+
+        <button
+          type="button"
+          className={
+            pestana ===
+            "certificados"
+              ? "active"
+              : ""
+          }
+          onClick={() =>
+            setPestana(
+              "certificados"
+            )
+          }
+        >
+          <FaCertificate />
+
+          Certificados generados
+
+          <span className="hours-tab-counter">
+            {certificados.length}
+          </span>
+        </button>
 
       </div>
 
-      {estudiante && (
+      {/* ================================================= */}
+      {/* HORAS */}
+      {/* ================================================= */}
+
+      {pestana ===
+        "horas" && (
         <>
+          <section className="hours-toolbar">
 
-          {/* RESUMEN */}
+            <div className="hours-search">
 
-          <div className="row mb-4">
+              <FaSearch />
 
-            <div className="col-lg-6 mb-3 mb-lg-0">
+              <input
+                type="text"
+                placeholder="Buscar estudiante por nombre o correo..."
+                value={
+                  busqueda
+                }
+                onChange={(
+                  event
+                ) =>
+                  setBusqueda(
+                    event
+                      .target
+                      .value
+                  )
+                }
+              />
 
-              <div className="card shadow-sm h-100">
+            </div>
 
-                <div className="card-body">
+            <select
+              value={
+                filtro
+              }
+              onChange={(
+                event
+              ) =>
+                setFiltro(
+                  event
+                    .target
+                    .value
+                )
+              }
+            >
+              <option value="todos">
+                Todos los estudiantes
+              </option>
 
-                  <small className="text-muted">
-                    Estudiante
-                  </small>
+              <option value="con_horas">
+                Con horas acumuladas
+              </option>
 
-                  <h4 className="mb-1">
-                    {
-                      estudiante.nombre
-                    }
-                  </h4>
+              <option value="elegibles">
+                Elegibles para certificado
+              </option>
 
-                  <p className="text-muted mb-0">
-                    {
-                      estudiante.correo
-                    }
-                  </p>
+              <option value="no_elegibles">
+                No elegibles
+              </option>
+            </select>
 
-                </div>
+          </section>
+
+          <section className="hours-table-card">
+
+            <div className="hours-table-heading">
+
+              <div>
+
+                <h2>
+                  Estudiantes
+                </h2>
+
+                <p>
+                  Selecciona un estudiante para
+                  consultar el detalle de sus actividades.
+                </p>
 
               </div>
 
+              <span>
+                {
+                  estudiantesFiltrados.length
+                } resultado(s)
+              </span>
+
             </div>
 
-            <div className="col-lg-3 col-md-6 mb-3 mb-md-0">
+            {cargando ? (
+              <div className="hours-loading">
+                Cargando información...
+              </div>
+            ) : estudiantesFiltrados.length ===
+              0 ? (
+              <div className="hours-empty">
 
-              <div className="card shadow-sm h-100">
+                <FaUsers />
 
-                <div className="card-body text-center">
+                <strong>
+                  No se encontraron estudiantes
+                </strong>
 
-                  <small className="text-muted">
-                    Horas asistidas
-                  </small>
-
-                  <h2 className="mt-2 mb-0">
-                    {formatearHoras(
-                      totalHoras
-                    )}
-                  </h2>
-
-                  <span className="text-muted">
-                    de{" "}
-                    {formatearHoras(
-                      horasEvaluadas
-                    )}{" "}
-                    evaluadas
-                  </span>
-
-                </div>
+                <span>
+                  Modifica la búsqueda o el filtro.
+                </span>
 
               </div>
+            ) : (
+              <div className="hours-table-wrapper">
 
-            </div>
+                <table className="hours-table">
 
-            <div className="col-lg-3 col-md-6">
-
-              <div className="card shadow-sm h-100">
-
-                <div className="card-body text-center">
-
-                  <small className="text-muted">
-                    Asistencia
-                  </small>
-
-                  <h2 className="mt-2 mb-1">
-                    {formatearPorcentaje(
-                      porcentajeAsistencia
-                    )}
-                    %
-                  </h2>
-
-                  {puedeGenerarCertificado ? (
-                    <span className="badge bg-success">
-                      Cumple requisito
-                    </span>
-                  ) : (
-                    <span className="badge bg-danger">
-                      Mínimo{" "}
-                      {porcentajeMinimo}%
-                    </span>
-                  )}
-
-                </div>
-
-              </div>
-
-            </div>
-
-          </div>
-
-          {/* ACTIVIDADES */}
-
-          <div className="card shadow-sm mb-4">
-
-            <div className="card-header bg-white">
-
-              <h5 className="mb-0">
-                Actividades deportivas
-              </h5>
-
-            </div>
-
-            <div className="card-body p-0">
-
-              <div className="table-responsive">
-
-                <table className="table table-hover align-middle mb-0">
-
-                  <thead className="table-light">
-
+                  <thead>
                     <tr>
-
                       <th>
-                        Evento
+                        Estudiante
                       </th>
 
                       <th>
-                        Fecha
+                        Asistió
                       </th>
 
                       <th>
-                        Duración
+                        Horas
                       </th>
 
                       <th>
@@ -886,102 +1054,150 @@ function HorasPage() {
                       </th>
 
                       <th>
-                        Horas obtenidas
+                        Certificados
                       </th>
 
-                    </tr>
+                      <th>
+                        Estado
+                      </th>
 
+                      <th>
+                        Acción
+                      </th>
+                    </tr>
                   </thead>
 
                   <tbody>
 
-                    {actividades.length ===
-                    0 ? (
-
-                      <tr>
-
-                        <td
-                          colSpan="5"
-                          className="text-center py-4 text-muted"
+                    {estudiantesFiltrados.map(
+                      (
+                        estudiante
+                      ) => (
+                        <tr
+                          key={
+                            estudiante.id_usuario
+                          }
                         >
-                          El estudiante no
-                          tiene actividades
-                          registradas.
-                        </td>
 
-                      </tr>
-
-                    ) : (
-
-                      actividades.map(
-                        (
-                          actividad
-                        ) => (
-
-                          <tr
-                            key={
-                              actividad.id_inscripcion
-                            }
+                          <td
+                            data-label="Estudiante"
                           >
+                            <div className="hours-student">
 
-                            <td>
+                              <div className="hours-student-avatar">
+                                {estudiante.nombre
+                                  ?.charAt(
+                                    0
+                                  )
+                                  .toUpperCase()}
+                              </div>
+
+                              <div>
+                                <strong>
+                                  {
+                                    estudiante.nombre
+                                  }
+                                </strong>
+
+                                <span>
+                                  {
+                                    estudiante.correo
+                                  }
+                                </span>
+                              </div>
+
+                            </div>
+                          </td>
+
+                          <td
+                            data-label="Asistió"
+                          >
+                            {
+                              estudiante.eventos_asistidos
+                            }{" "}
+                            evento(s)
+                          </td>
+
+                          <td
+                            data-label="Horas"
+                          >
+                            <strong className="hours-number">
+                              {formatearHoras(
+                                estudiante.horas_acumuladas
+                              )}
+                            </strong>
+                          </td>
+
+                          <td
+                            data-label="Asistencia"
+                          >
+                            <div className="hours-percentage">
 
                               <strong>
                                 {
-                                  actividad.evento
+                                  estudiante.porcentaje_asistencia
                                 }
+                                %
                               </strong>
 
-                              {actividad.lugar && (
-                                <>
-                                  <br />
+                              <div>
+                                <span
+                                  style={{
+                                    width: `${Math.min(
+                                      estudiante.porcentaje_asistencia,
+                                      100
+                                    )}%`,
+                                  }}
+                                />
+                              </div>
 
-                                  <small className="text-muted">
-                                    {
-                                      actividad.lugar
-                                    }
-                                  </small>
-                                </>
-                              )}
+                            </div>
+                          </td>
 
-                            </td>
+                          <td
+                            data-label="Certificados"
+                          >
+                            {
+                              estudiante.certificados_generados
+                            }
+                          </td>
 
-                            <td>
-                              {formatearFecha(
-                                actividad.fecha
-                              )}
-                            </td>
+                          <td
+                            data-label="Estado"
+                          >
+                            <span
+                              className={`hours-badge ${
+                                estudiante.elegible_certificado
+                                  ? "eligible"
+                                  : "not-eligible"
+                              }`}
+                            >
+                              {estudiante.elegible_certificado
+                                ? "Elegible"
+                                : "No elegible"}
+                            </span>
+                          </td>
 
-                            <td>
-                              {formatearHoras(
-                                actividad.duracion_horas
-                              )}
-                              {" h"}
-                            </td>
+                          <td
+                            data-label="Acción"
+                          >
+                            <button
+                              type="button"
+                              className="hours-view-button"
+                              onClick={() =>
+                                verEstudiante(
+                                  estudiante
+                                )
+                              }
+                            >
+                              <FaEye />
 
-                            <td>
-                              {obtenerBadgeAsistencia(
-                                actividad.asistencia
-                              )}
-                            </td>
+                              Ver horas
+                            </button>
+                          </td>
 
-                            <td>
-
-                              <strong>
-                                {formatearHoras(
-                                  actividad.horas_obtenidas
-                                )}
-                              </strong>
-
-                              {" h"}
-
-                            </td>
-
-                          </tr>
-
-                        )
+                        </tr>
                       )
-
                     )}
 
                   </tbody>
@@ -989,359 +1205,665 @@ function HorasPage() {
                 </table>
 
               </div>
+            )}
 
-            </div>
+          </section>
+        </>
+      )}
 
-          </div>
+      {/* ================================================= */}
+      {/* CERTIFICADOS */}
+      {/* ================================================= */}
 
-          {/* CERTIFICADOS */}
+      {pestana ===
+        "certificados" && (
+        <section className="hours-table-card">
 
-          <div className="d-flex justify-content-between align-items-center mb-3">
+          <div className="hours-table-heading">
 
             <div>
 
-              <h4 className="mb-1">
-                Certificados
-              </h4>
+              <h2>
+                Certificados generados
+              </h2>
 
-              <p className="text-muted mb-0">
-                Se requiere mínimo{" "}
-                {porcentajeMinimo}% de
-                asistencia y más de 0 horas.
+              <p>
+                Historial de certificados de horas
+                deportivas generados en SportU.
               </p>
 
             </div>
 
-            <button
-              type="button"
-              className="btn btn-warning"
-              onClick={
-                manejarGenerarCertificado
-              }
-              disabled={
-                generando ||
-                !puedeGenerarCertificado
-              }
-            >
-              {generando
-                ? "Generando..."
-                : "Generar certificado"}
-            </button>
+            <span>
+              {certificados.length} certificado(s)
+            </span>
 
           </div>
 
-          {!puedeGenerarCertificado && (
-            <div className="alert alert-warning">
+          {cargando ? (
+            <div className="hours-loading">
+              Cargando certificados...
+            </div>
+          ) : certificados.length ===
+            0 ? (
+            <div className="hours-empty">
 
-              {totalHoras <= 0
-                ? "El estudiante todavía no tiene horas deportivas asistidas y no puede generar un certificado."
-                : `El estudiante tiene ${formatearPorcentaje(
-                    porcentajeAsistencia
-                  )}% de asistencia. Se requiere mínimo ${porcentajeMinimo}%.`}
+              <FaCertificate />
+
+              <strong>
+                No hay certificados generados
+              </strong>
+
+              <span>
+                Los certificados aparecerán aquí
+                cuando sean creados.
+              </span>
+
+            </div>
+          ) : (
+            <div className="hours-table-wrapper">
+
+              <table className="hours-table">
+
+                <thead>
+                  <tr>
+                    <th>
+                      Nº
+                    </th>
+
+                    <th>
+                      Estudiante
+                    </th>
+
+                    <th>
+                      Horas certificadas
+                    </th>
+
+                    <th>
+                      Fecha
+                    </th>
+
+                    <th>
+                      Acciones
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody>
+
+                  {certificados.map(
+                    (
+                      certificado
+                    ) => (
+                      <tr
+                        key={
+                          certificado.id_certificado
+                        }
+                      >
+
+                        <td
+                          data-label="Nº"
+                        >
+                          <strong>
+                            #
+                            {
+                              certificado.id_certificado
+                            }
+                          </strong>
+                        </td>
+
+                        <td
+                          data-label="Estudiante"
+                        >
+                          <div className="hours-student">
+
+                            <div className="hours-student-avatar certificate">
+                              <FaCertificate />
+                            </div>
+
+                            <div>
+
+                              <strong>
+                                {
+                                  certificado.estudiante
+                                }
+                              </strong>
+
+                              <span>
+                                {
+                                  certificado.correo
+                                }
+                              </span>
+
+                            </div>
+
+                          </div>
+                        </td>
+
+                        <td
+                          data-label="Horas"
+                        >
+                          <strong className="hours-number">
+                            {formatearHoras(
+                              certificado.horas_certificadas
+                            )}
+                          </strong>
+                        </td>
+
+                        <td
+                          data-label="Fecha"
+                        >
+                          {formatearFechaHora(
+                            certificado.fecha_generacion
+                          )}
+                        </td>
+
+                        <td
+                          data-label="Acciones"
+                        >
+                          <div className="hours-actions">
+
+                            <button
+                              type="button"
+                              className="hours-icon-button view"
+                              title="Ver certificado"
+                              onClick={() =>
+                                setCertificadoVista(
+                                  certificado
+                                )
+                              }
+                            >
+                              <FaEye />
+                            </button>
+
+                            <button
+                              type="button"
+                              className="hours-icon-button print"
+                              title="Imprimir certificado"
+                              onClick={() =>
+                                imprimirCertificado(
+                                  certificado
+                                )
+                              }
+                            >
+                              <FaPrint />
+                            </button>
+
+                            <button
+                              type="button"
+                              className="hours-icon-button delete"
+                              title="Eliminar certificado"
+                              disabled={
+                                procesando
+                              }
+                              onClick={() =>
+                                manejarEliminarCertificado(
+                                  certificado
+                                )
+                              }
+                            >
+                              <FaTrash />
+                            </button>
+
+                          </div>
+                        </td>
+
+                      </tr>
+                    )
+                  )}
+
+                </tbody>
+
+              </table>
 
             </div>
           )}
 
-          {/* TABLA CERTIFICADOS */}
-
-          <div className="card shadow-sm mb-4">
-
-            <div className="card-body p-0">
-
-              <div className="table-responsive">
-
-                <table className="table table-hover align-middle mb-0">
-
-                  <thead className="table-light">
-
-                    <tr>
-
-                      <th>
-                        #
-                      </th>
-
-                      <th>
-                        Estudiante
-                      </th>
-
-                      <th>
-                        Horas certificadas
-                      </th>
-
-                      <th>
-                        Fecha de generación
-                      </th>
-
-                      <th>
-                        Acciones
-                      </th>
-
-                    </tr>
-
-                  </thead>
-
-                  <tbody>
-
-                    {certificados.length ===
-                    0 ? (
-
-                      <tr>
-
-                        <td
-                          colSpan="5"
-                          className="text-center py-4 text-muted"
-                        >
-                          No existen
-                          certificados
-                          generados.
-                        </td>
-
-                      </tr>
-
-                    ) : (
-
-                      certificados.map(
-                        (
-                          certificado
-                        ) => (
-
-                          <tr
-                            key={
-                              certificado.id_certificado
-                            }
-                          >
-
-                            <td>
-                              {
-                                certificado.id_certificado
-                              }
-                            </td>
-
-                            <td>
-
-                              <div>
-                                {
-                                  certificado.estudiante
-                                }
-                              </div>
-
-                              <small className="text-muted">
-                                {
-                                  certificado.correo
-                                }
-                              </small>
-
-                            </td>
-
-                            <td>
-
-                              {formatearHoras(
-                                certificado.horas_certificadas
-                              )}
-                              {" h"}
-
-                            </td>
-
-                            <td>
-                              {formatearFecha(
-                                certificado.fecha_generacion
-                              )}
-                            </td>
-
-                            <td>
-
-                              <div className="d-flex gap-2">
-
-                                <button
-                                  type="button"
-                                  className="btn btn-sm btn-outline-primary"
-                                  onClick={() =>
-                                    verCertificado(
-                                      certificado
-                                    )
-                                  }
-                                >
-                                  Ver
-                                </button>
-
-                                <button
-                                  type="button"
-                                  className="btn btn-sm btn-outline-danger"
-                                  onClick={() =>
-                                    manejarEliminarCertificado(
-                                      certificado.id_certificado
-                                    )
-                                  }
-                                >
-                                  Eliminar
-                                </button>
-
-                              </div>
-
-                            </td>
-
-                          </tr>
-
-                        )
-                      )
-
-                    )}
-
-                  </tbody>
-
-                </table>
-
-              </div>
-
-            </div>
-
-          </div>
-
-        </>
+        </section>
       )}
 
-      {/* VISTA DEL CERTIFICADO */}
+      {/* ================================================= */}
+      {/* MODAL DETALLE ESTUDIANTE */}
+      {/* ================================================= */}
 
-      {certificadoSeleccionado && (
+      {estudianteSeleccionado && (
+        <div
+          className="hours-modal-overlay"
+          onMouseDown={
+            cerrarDetalle
+          }
+        >
 
-        <div className="card shadow-lg border-0 mb-4">
+          <section
+            className="hours-modal hours-student-modal"
+            onMouseDown={(
+              event
+            ) =>
+              event.stopPropagation()
+            }
+          >
 
-          <div className="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <div className="hours-modal-header">
 
-            <span>
-              Vista del certificado
-            </span>
+              <div>
 
-            <button
-              type="button"
-              className="btn btn-sm btn-light"
-              onClick={
-                cerrarCertificado
-              }
-            >
-              Cerrar
-            </button>
+                <span>
+                  DETALLE DEL ESTUDIANTE
+                </span>
 
-          </div>
-
-          <div className="card-body p-4 p-md-5">
-
-            <div
-              className="border rounded p-4 p-md-5 text-center"
-              style={{
-                maxWidth: "900px",
-                margin: "0 auto",
-                minHeight: "480px",
-              }}
-            >
-
-              <div className="mb-4">
-
-                <h2 className="fw-bold mb-1">
-                  SPORTU
+                <h2>
+                  {
+                    estudianteSeleccionado.nombre
+                  }
                 </h2>
 
-                <p className="text-muted mb-0">
-                  Sistema de Registro de Eventos Deportivos
+                <p>
+                  {
+                    estudianteSeleccionado.correo
+                  }
                 </p>
 
               </div>
 
-              <hr />
-
-              <div className="my-5">
-
-                <h3 className="fw-bold">
-                  CERTIFICADO DE HORAS DEPORTIVAS
-                </h3>
-
-              </div>
-
-              <p className="fs-5">
-                Se certifica que:
-              </p>
-
-              <h2 className="fw-bold mb-3">
-
-                {
-                  certificadoSeleccionado.estudiante
+              <button
+                type="button"
+                onClick={
+                  cerrarDetalle
                 }
-
-              </h2>
-
-              {certificadoSeleccionado.correo && (
-
-                <p className="text-muted mb-4">
-
-                  {
-                    certificadoSeleccionado.correo
-                  }
-
-                </p>
-
-              )}
-
-              <p className="fs-5">
-                ha acumulado un total de
-              </p>
-
-              <div className="my-4">
-
-                <span className="display-4 fw-bold">
-
-                  {formatearHoras(
-                    certificadoSeleccionado.horas_certificadas
-                  )}
-
-                </span>
-
-                <span className="fs-3 ms-2">
-                  horas
-                </span>
-
-              </div>
-
-              <p className="fs-5">
-                de participación en
-                actividades deportivas
-                registradas en SportU.
-              </p>
-
-              <div className="mt-5">
-
-                <p className="mb-1 text-muted">
-                  Fecha de generación
-                </p>
-
-                <strong>
-
-                  {formatearFecha(
-                    certificadoSeleccionado.fecha_generacion
-                  )}
-
-                </strong>
-
-              </div>
-
-              <div className="mt-4">
-
-                <small className="text-muted">
-
-                  Certificado No.{" "}
-                  {
-                    certificadoSeleccionado.id_certificado
-                  }
-
-                </small>
-
-              </div>
+              >
+                <FaTimes />
+              </button>
 
             </div>
 
-          </div>
+            {cargandoDetalle ||
+            !detalle ? (
+              <div className="hours-loading modal">
+                Consultando actividades...
+              </div>
+            ) : (
+              <>
+
+                <div className="hours-detail-summary">
+
+                  <div>
+                    <span>
+                      Horas obtenidas
+                    </span>
+
+                    <strong>
+                      {formatearHoras(
+                        detalle.resumen.horas_acumuladas
+                      )}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>
+                      Horas evaluadas
+                    </span>
+
+                    <strong>
+                      {formatearHoras(
+                        detalle.resumen.horas_evaluadas
+                      )}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>
+                      Asistencia
+                    </span>
+
+                    <strong>
+                      {
+                        detalle.resumen.porcentaje_asistencia
+                      }
+                      %
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>
+                      Eventos asistidos
+                    </span>
+
+                    <strong>
+                      {
+                        detalle.resumen.eventos_asistidos
+                      }
+                    </strong>
+                  </div>
+
+                </div>
+
+                <div
+                  className={`hours-eligibility ${
+                    detalle.resumen.elegible_certificado
+                      ? "eligible"
+                      : "not-eligible"
+                  }`}
+                >
+
+                  {detalle.resumen.elegible_certificado ? (
+                    <FaCheckCircle />
+                  ) : (
+                    <FaExclamationTriangle />
+                  )}
+
+                  <div>
+
+                    <strong>
+                      {detalle.resumen.elegible_certificado
+                        ? "Estudiante habilitado para certificado"
+                        : "Estudiante todavía no habilitado"}
+                    </strong>
+
+                    <span>
+                      Se requiere mínimo{" "}
+                      {
+                        porcentajeMinimo
+                      }
+                      % de asistencia y al menos una
+                      actividad asistida.
+                    </span>
+
+                  </div>
+
+                </div>
+
+                <div className="hours-detail-title">
+
+                  <div>
+
+                    <FaCalendarAlt />
+
+                    <div>
+                      <strong>
+                        Actividades deportivas
+                      </strong>
+
+                      <span>
+                        Historial de inscripciones y asistencia
+                      </span>
+                    </div>
+
+                  </div>
+
+                </div>
+
+                {detalle.actividades.length ===
+                0 ? (
+                  <div className="hours-empty compact">
+
+                    <FaCalendarAlt />
+
+                    <strong>
+                      Sin actividades
+                    </strong>
+
+                    <span>
+                      Este estudiante todavía no registra actividades.
+                    </span>
+
+                  </div>
+                ) : (
+                  <div className="hours-detail-table-wrapper">
+
+                    <table className="hours-detail-table">
+
+                      <thead>
+                        <tr>
+                          <th>
+                            Evento
+                          </th>
+
+                          <th>
+                            Fecha
+                          </th>
+
+                          <th>
+                            Duración
+                          </th>
+
+                          <th>
+                            Asistencia
+                          </th>
+
+                          <th>
+                            Horas
+                          </th>
+                        </tr>
+                      </thead>
+
+                      <tbody>
+
+                        {detalle.actividades.map(
+                          (
+                            actividad
+                          ) => (
+                            <tr
+                              key={
+                                actividad.id_inscripcion
+                              }
+                            >
+
+                              <td>
+                                <strong>
+                                  {
+                                    actividad.evento
+                                  }
+                                </strong>
+
+                                <span>
+                                  {
+                                    actividad.deporte ||
+                                    "Actividad deportiva"
+                                  }
+                                </span>
+                              </td>
+
+                              <td>
+                                {formatearFecha(
+                                  actividad.fecha_inicio
+                                )}
+                              </td>
+
+                              <td>
+                                {formatearHoras(
+                                  actividad.duracion_horas
+                                )}
+                              </td>
+
+                              <td>
+                                <span
+                                  className={`hours-attendance ${
+                                    actividad.asistencia ===
+                                    "Asistió"
+                                      ? "attended"
+                                      : actividad.asistencia ===
+                                        "No asistió"
+                                      ? "absent"
+                                      : "pending"
+                                  }`}
+                                >
+                                  {
+                                    actividad.asistencia
+                                  }
+                                </span>
+                              </td>
+
+                              <td>
+                                <strong>
+                                  {formatearHoras(
+                                    actividad.horas_obtenidas
+                                  )}
+                                </strong>
+                              </td>
+
+                            </tr>
+                          )
+                        )}
+
+                      </tbody>
+
+                    </table>
+
+                  </div>
+                )}
+
+                <div className="hours-modal-footer">
+
+                  <button
+                    type="button"
+                    className="hours-secondary-button"
+                    onClick={
+                      cerrarDetalle
+                    }
+                  >
+                    Cerrar
+                  </button>
+
+                  <button
+                    type="button"
+                    className="hours-certificate-button"
+                    disabled={
+                      procesando ||
+                      !detalle.resumen.elegible_certificado
+                    }
+                    onClick={
+                      manejarGenerarCertificado
+                    }
+                  >
+                    <FaCertificate />
+
+                    {procesando
+                      ? "Generando..."
+                      : "Generar certificado"}
+                  </button>
+
+                </div>
+
+              </>
+            )}
+
+          </section>
 
         </div>
+      )}
 
+      {/* ================================================= */}
+      {/* MODAL CERTIFICADO */}
+      {/* ================================================= */}
+
+      {certificadoVista && (
+        <div
+          className="hours-modal-overlay"
+          onMouseDown={() =>
+            setCertificadoVista(
+              null
+            )
+          }
+        >
+
+          <section
+            className="hours-modal hours-certificate-modal"
+            onMouseDown={(
+              event
+            ) =>
+              event.stopPropagation()
+            }
+          >
+
+            <div className="hours-modal-header">
+
+              <div>
+
+                <span>
+                  CERTIFICADO GENERADO
+                </span>
+
+                <h2>
+                  Vista previa
+                </h2>
+
+                <p>
+                  Certificado Nº{" "}
+                  {
+                    certificadoVista.id_certificado
+                  }
+                </p>
+
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setCertificadoVista(
+                    null
+                  )
+                }
+              >
+                <FaTimes />
+              </button>
+
+            </div>
+
+            <CertificadoContenido
+              certificado={
+                certificadoVista
+              }
+            />
+
+            <div className="hours-modal-footer">
+
+              <button
+                type="button"
+                className="hours-secondary-button"
+                onClick={() =>
+                  setCertificadoVista(
+                    null
+                  )
+                }
+              >
+                Cerrar
+              </button>
+
+              <button
+                type="button"
+                className="hours-certificate-button"
+                onClick={() =>
+                  imprimirCertificado(
+                    certificadoVista
+                  )
+                }
+              >
+                <FaPrint />
+
+                Imprimir
+              </button>
+
+            </div>
+
+          </section>
+
+        </div>
+      )}
+
+      {/* ================================================= */}
+      {/* ZONA EXCLUSIVA DE IMPRESIÓN */}
+      {/* ================================================= */}
+
+      {certificadoVista && (
+        <div className="hours-certificate-print">
+
+          <CertificadoContenido
+            certificado={
+              certificadoVista
+            }
+          />
+
+        </div>
       )}
 
     </div>

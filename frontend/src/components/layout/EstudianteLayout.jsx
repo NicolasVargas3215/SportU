@@ -1,97 +1,110 @@
-import { Outlet } from "react-router-dom";
+import {
+  useEffect,
+  useState,
+} from "react";
+
+import {
+  Outlet,
+  useLocation,
+} from "react-router-dom";
+
+import Topbar from "./Topbar";
+import FooterBanner from "./FooterBanner";
 import StudentSidebar from "./StudentSidebar";
-import "./estudianteLayout.css";
+
+import "../../styles/estudiante.css";
 
 function EstudianteLayout() {
-  const obtenerUsuario = () => {
-    try {
-      const datos =
-        localStorage.getItem("usuario") ||
-        localStorage.getItem("user");
+  const [
+    menuAbierto,
+    setMenuAbierto,
+  ] = useState(false);
 
-      if (!datos) {
-        return null;
-      }
+  const location =
+    useLocation();
 
-      return JSON.parse(datos);
-    } catch (error) {
-      return null;
+  useEffect(() => {
+    setMenuAbierto(
+      false
+    );
+  }, [
+    location.pathname,
+  ]);
+
+  useEffect(() => {
+    if (
+      menuAbierto
+    ) {
+      document.body.classList.add(
+        "sportu-menu-open"
+      );
+    } else {
+      document.body.classList.remove(
+        "sportu-menu-open"
+      );
     }
-  };
 
-  const usuario = obtenerUsuario();
-
-  const nombre =
-    usuario?.nombre ||
-    "Estudiante";
+    return () => {
+      document.body.classList.remove(
+        "sportu-menu-open"
+      );
+    };
+  }, [
+    menuAbierto,
+  ]);
 
   return (
-    <div className="student-app">
-      {/* ========================================= */}
-      {/* BARRA SUPERIOR */}
-      {/* ========================================= */}
+    <div className="sportu-app">
 
-      <header className="student-header">
-        <div className="student-brand">
-          <div className="student-brand-logo">
-            U
+      <Topbar
+        onMenuToggle={() =>
+          setMenuAbierto(
+            (
+              actual
+            ) =>
+              !actual
+          )
+        }
+      />
+
+      <div className="sportu-body">
+
+        <StudentSidebar
+          abierto={
+            menuAbierto
+          }
+          onClose={() =>
+            setMenuAbierto(
+              false
+            )
+          }
+        />
+
+        {menuAbierto && (
+          <button
+            type="button"
+            className="sportu-sidebar-overlay"
+            aria-label="Cerrar menú"
+            onClick={() =>
+              setMenuAbierto(
+                false
+              )
+            }
+          />
+        )}
+
+        <main className="sportu-main">
+
+          <div className="sportu-content">
+            <Outlet />
           </div>
 
-          <div>
-            <div className="student-brand-title">
-              Uniautónoma
-            </div>
-
-            <div className="student-brand-subtitle">
-              DEL CAUCA
-            </div>
-          </div>
-        </div>
-
-        <div className="student-user">
-          <div className="student-avatar">
-            {nombre
-              .charAt(0)
-              .toUpperCase()}
-          </div>
-
-          <div className="student-user-info">
-            <strong>
-              {nombre}
-            </strong>
-
-            <span>
-              Estudiante
-            </span>
-          </div>
-        </div>
-      </header>
-
-      {/* ========================================= */}
-      {/* CUERPO PRINCIPAL */}
-      {/* ========================================= */}
-
-      <div className="student-body">
-        <StudentSidebar />
-
-        <main className="student-content">
-          <Outlet />
         </main>
+
       </div>
 
-      {/* ========================================= */}
-      {/* FOOTER */}
-      {/* ========================================= */}
+      <FooterBanner />
 
-      <footer className="student-footer">
-        <strong>
-          SOMOS COMUNIDAD
-        </strong>
-
-        <span>
-          Vive el deporte, vive Uniautónoma
-        </span>
-      </footer>
     </div>
   );
 }

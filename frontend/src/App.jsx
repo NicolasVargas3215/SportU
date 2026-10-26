@@ -1,33 +1,22 @@
 import {
-  Routes,
   Route,
+  Routes,
 } from "react-router-dom";
 
-// =========================================
-// PÁGINAS GENERALES
-// =========================================
+// =====================================================
+// GENERALES
+// =====================================================
 
 import LoadingPage from "./pages/LoadingPage";
 import LoginPage from "./pages/LoginPage";
 
-// =========================================
-// ESTUDIANTE
-// =========================================
+import ProtectedRoute from "./components/ProtectedRoute";
 
-import DashboardEstudiante from "./pages/estudiante/DashboardEstudiante";
-import EventosDisponiblesPage from "./pages/estudiante/EventosDisponiblesPage";
-import MisInscripcionesPage from "./pages/estudiante/MisInscripcionesPage";
-import PerfilEstudiantePage from "./pages/estudiante/PerfilEstudiantePage";
-
-// =========================================
-// DOCENTE
-// =========================================
-
-import DocentePage from "./pages/docente/DocentePage";
-
-// =========================================
+// =====================================================
 // COORDINADOR
-// =========================================
+// =====================================================
+
+import CoordinadorLayout from "./components/layout/CoordinadorLayout";
 
 import DashboardCoordinador from "./pages/coordinador/DashboardCoordinador";
 import DeportesPage from "./pages/coordinador/DeportesPage";
@@ -37,26 +26,38 @@ import InventarioPage from "./pages/coordinador/InventarioPage";
 import PrestamosPage from "./pages/coordinador/PrestamosPage";
 import HorasPage from "./pages/coordinador/HorasPage";
 
-// =========================================
-// LAYOUTS
-// =========================================
+// =====================================================
+// ESTUDIANTE
+// =====================================================
 
 import EstudianteLayout from "./components/layout/EstudianteLayout";
-import CoordinadorLayout from "./components/layout/CoordinadorLayout";
 
-// =========================================
-// PROTECCIÓN DE RUTAS
-// =========================================
+import DashboardEstudiante from "./pages/estudiante/DashboardEstudiante";
+import EventosDisponiblesPage from "./pages/estudiante/EventosDisponiblesPage";
+import MisInscripcionesPage from "./pages/estudiante/MisInscripcionesPage";
+import PerfilEstudiantePage from "./pages/estudiante/PerfilEstudiantePage";
 
-import ProtectedRoute from "./components/ProtectedRoute";
+// =====================================================
+// DOCENTE
+// =====================================================
+
+import DocenteLayout from "./components/layout/DocenteLayout";
+
+import DashboardDocente from "./pages/docente/DashboardDocente";
+import MisActividadesPage from "./pages/docente/MisActividadesPage";
+import AsistenciaPage from "./pages/docente/AsistenciaPage";
+
+// =====================================================
+// APP
+// =====================================================
 
 function App() {
   return (
     <Routes>
 
-      {/* =================================== */}
-      {/* PANTALLA DE CARGA */}
-      {/* =================================== */}
+      {/* =============================================== */}
+      {/* CARGA */}
+      {/* =============================================== */}
 
       <Route
         path="/"
@@ -65,9 +66,9 @@ function App() {
         }
       />
 
-      {/* =================================== */}
+      {/* =============================================== */}
       {/* LOGIN */}
-      {/* =================================== */}
+      {/* =============================================== */}
 
       <Route
         path="/login"
@@ -76,9 +77,9 @@ function App() {
         }
       />
 
-      {/* =================================== */}
+      {/* =============================================== */}
       {/* ESTUDIANTE */}
-      {/* =================================== */}
+      {/* =============================================== */}
 
       <Route
         path="/estudiante"
@@ -93,16 +94,12 @@ function App() {
         }
       >
 
-        {/* INICIO */}
-
         <Route
           index
           element={
             <DashboardEstudiante />
           }
         />
-
-        {/* EVENTOS DISPONIBLES */}
 
         <Route
           path="eventos"
@@ -111,16 +108,12 @@ function App() {
           }
         />
 
-        {/* MIS INSCRIPCIONES */}
-
         <Route
           path="inscripciones"
           element={
             <MisInscripcionesPage />
           }
         />
-
-        {/* PERFIL */}
 
         <Route
           path="perfil"
@@ -131,9 +124,9 @@ function App() {
 
       </Route>
 
-      {/* =================================== */}
+      {/* =============================================== */}
       {/* DOCENTE */}
-      {/* =================================== */}
+      {/* =============================================== */}
 
       <Route
         path="/docente"
@@ -143,14 +136,37 @@ function App() {
               "docente",
             ]}
           >
-            <DocentePage />
+            <DocenteLayout />
           </ProtectedRoute>
         }
-      />
+      >
 
-      {/* =================================== */}
+        <Route
+          index
+          element={
+            <DashboardDocente />
+          }
+        />
+
+        <Route
+          path="actividades"
+          element={
+            <MisActividadesPage />
+          }
+        />
+
+        <Route
+          path="actividades/:id/asistencia"
+          element={
+            <AsistenciaPage />
+          }
+        />
+
+      </Route>
+
+      {/* =============================================== */}
       {/* COORDINADOR */}
-      {/* =================================== */}
+      {/* =============================================== */}
 
       <Route
         path="/coordinador"
@@ -165,16 +181,12 @@ function App() {
         }
       >
 
-        {/* DASHBOARD */}
-
         <Route
           index
           element={
             <DashboardCoordinador />
           }
         />
-
-        {/* DEPORTES */}
 
         <Route
           path="deportes"
@@ -183,16 +195,12 @@ function App() {
           }
         />
 
-        {/* EVENTOS */}
-
         <Route
           path="eventos"
           element={
             <EventosPage />
           }
         />
-
-        {/* CREAR EVENTO */}
 
         <Route
           path="eventos/nuevo"
@@ -201,16 +209,12 @@ function App() {
           }
         />
 
-        {/* EDITAR EVENTO */}
-
         <Route
           path="eventos/editar/:id"
           element={
             <EventoFormPage />
           }
         />
-
-        {/* INVENTARIO */}
 
         <Route
           path="inventario"
@@ -219,16 +223,12 @@ function App() {
           }
         />
 
-        {/* PRÉSTAMOS */}
-
         <Route
           path="prestamos"
           element={
             <PrestamosPage />
           }
         />
-
-        {/* HORAS DEPORTIVAS */}
 
         <Route
           path="horas"

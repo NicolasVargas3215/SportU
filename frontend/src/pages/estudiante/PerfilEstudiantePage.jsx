@@ -3,422 +3,516 @@ import {
   useState,
 } from "react";
 
-import "./studentPages.css";
+import {
+  FaCertificate,
+  FaCheckCircle,
+  FaClock,
+  FaEnvelope,
+  FaIdBadge,
+  FaUser,
+} from "react-icons/fa";
+
+import {
+  obtenerCertificadosEstudiante,
+  obtenerPerfilEstudiante,
+  obtenerResumenEstudiante,
+} from "../../services/estudianteService";
+
+// =====================================================
+// HELPERS
+// =====================================================
+
+const formatearFecha =
+  (
+    fecha
+  ) => {
+    if (
+      !fecha
+    ) {
+      return "—";
+    }
+
+    const objeto =
+      new Date(
+        String(
+          fecha
+        ).replace(
+          " ",
+          "T"
+        )
+      );
+
+    if (
+      Number.isNaN(
+        objeto.getTime()
+      )
+    ) {
+      return fecha;
+    }
+
+    return objeto.toLocaleDateString(
+      "es-CO",
+      {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+      }
+    );
+  };
+
+const formatearHoras =
+  (
+    valor
+  ) =>
+    `${Number(
+      valor || 0
+    )
+      .toFixed(2)
+      .replace(
+        /\.?0+$/,
+        ""
+      )} h`;
+
+// =====================================================
+// COMPONENTE
+// =====================================================
 
 function PerfilEstudiantePage() {
   const [
-    usuario,
-    setUsuario,
+    estudiante,
+    setEstudiante,
   ] = useState(null);
 
-  // =====================================================
-  // DECODIFICAR TOKEN
-  // =====================================================
+  const [
+    resumen,
+    setResumen,
+  ] = useState({});
 
-  const decodificarToken = (
-    token
-  ) => {
-    try {
-      if (!token) {
-        return null;
-      }
+  const [
+    certificados,
+    setCertificados,
+  ] = useState([]);
 
-      const partes =
-        token.split(".");
+  const [
+    cargando,
+    setCargando,
+  ] = useState(true);
 
-      if (
-        partes.length !== 3
-      ) {
-        return null;
-      }
-
-      const payload =
-        partes[1]
-          .replace(/-/g, "+")
-          .replace(/_/g, "/");
-
-      const decoded =
-        decodeURIComponent(
-          window
-            .atob(payload)
-            .split("")
-            .map((caracter) => {
-              return (
-                "%" +
-                (
-                  "00" +
-                  caracter
-                    .charCodeAt(0)
-                    .toString(16)
-                ).slice(-2)
-              );
-            })
-            .join("")
-        );
-
-      return JSON.parse(
-        decoded
-      );
-    } catch (error) {
-      console.error(
-        "No fue posible decodificar el token:",
-        error
-      );
-
-      return null;
-    }
-  };
-
-  // =====================================================
-  // OBTENER USUARIO
-  // =====================================================
-
-  const obtenerUsuario = () => {
-    try {
-      const usuarioGuardado =
-        localStorage.getItem(
-          "usuario"
-        ) ||
-        localStorage.getItem(
-          "user"
-        );
-
-      if (usuarioGuardado) {
-        return JSON.parse(
-          usuarioGuardado
-        );
-      }
-
-      const token =
-        localStorage.getItem(
-          "token"
-        );
-
-      return decodificarToken(
-        token
-      );
-    } catch (error) {
-      console.error(
-        "Error al consultar datos del usuario:",
-        error
-      );
-
-      return null;
-    }
-  };
-
-  // =====================================================
-  // CARGA INICIAL
-  // =====================================================
+  const [
+    error,
+    setError,
+  ] = useState("");
 
   useEffect(() => {
-    const datos =
-      obtenerUsuario();
+    const cargar =
+      async () => {
+        try {
+          setCargando(
+            true
+          );
 
-    setUsuario(datos);
+          setError("");
+
+          const [
+            datosPerfil,
+            datosResumen,
+            datosCertificados,
+          ] =
+            await Promise.all([
+              obtenerPerfilEstudiante(),
+              obtenerResumenEstudiante(),
+              obtenerCertificadosEstudiante(),
+            ]);
+
+          setEstudiante(
+            datosPerfil.estudiante ||
+              null
+          );
+
+          setResumen(
+            datosResumen.resumen ||
+              {}
+          );
+
+          setCertificados(
+            datosCertificados.certificados ||
+              []
+          );
+        } catch (err) {
+          setError(
+            err.message ||
+              "No fue posible consultar tu perfil."
+          );
+        } finally {
+          setCargando(
+            false
+          );
+        }
+      };
+
+    cargar();
   }, []);
 
-  // =====================================================
-  // OBTENER INICIALES
-  // =====================================================
-
-  const obtenerIniciales = (
-    nombre
-  ) => {
-    if (!nombre) {
-      return "E";
-    }
-
-    const partes =
-      nombre
-        .trim()
-        .split(" ")
-        .filter(Boolean);
-
-    if (
-      partes.length === 1
-    ) {
-      return partes[0]
-        .charAt(0)
-        .toUpperCase();
-    }
-
+  if (
+    cargando
+  ) {
     return (
-      partes[0]
-        .charAt(0)
-        .toUpperCase() +
-      partes[1]
-        .charAt(0)
-        .toUpperCase()
+      <div className="student-page">
+
+        <div className="student-card student-loading">
+          Cargando perfil...
+        </div>
+
+      </div>
     );
-  };
-
-  // =====================================================
-  // CAPITALIZAR
-  // =====================================================
-
-  const capitalizar = (
-    texto
-  ) => {
-    if (!texto) {
-      return "-";
-    }
-
-    const valor =
-      String(texto);
-
-    return (
-      valor
-        .charAt(0)
-        .toUpperCase() +
-      valor
-        .slice(1)
-        .toLowerCase()
-    );
-  };
-
-  // =====================================================
-  // DATOS
-  // =====================================================
-
-  const nombre =
-    usuario?.nombre ||
-    "Estudiante";
-
-  const correo =
-    usuario?.correo ||
-    usuario?.email ||
-    "No disponible";
-
-  const rol =
-    usuario?.rol ||
-    "estudiante";
-
-  const estado =
-    usuario?.estado ||
-    "activo";
-
-  // =====================================================
-  // RENDER
-  // =====================================================
+  }
 
   return (
     <div className="student-page">
 
-      {/* =============================================== */}
-      {/* ENCABEZADO */}
-      {/* =============================================== */}
-
-      <div className="student-page-header">
+      <section className="student-page-header">
 
         <div>
+
+          <span className="student-eyebrow">
+            CUENTA SPORTU
+          </span>
 
           <h1>
             Mi perfil
           </h1>
 
           <p>
-            Consulta la información asociada
-            a tu cuenta en SportU.
+            Consulta tu información de usuario,
+            actividad deportiva y certificados.
           </p>
 
         </div>
 
-      </div>
+      </section>
 
-      {/* =============================================== */}
-      {/* PERFIL */}
-      {/* =============================================== */}
-
-      <div className="student-profile-card">
-
-        {/* CABECERA */}
-
-        <div className="student-profile-header">
-
-          <div className="student-profile-avatar">
-
-            {obtenerIniciales(
-              nombre
-            )}
-
-          </div>
-
-          <div className="student-profile-main-info">
-
-            <h2>
-              {nombre}
-            </h2>
-
-            <p>
-              {correo}
-            </p>
-
-            <span className="student-profile-role">
-              {capitalizar(
-                rol
-              )}
-            </span>
-
-          </div>
-
+      {error && (
+        <div className="student-alert error">
+          {error}
         </div>
+      )}
 
-        {/* INFORMACIÓN */}
+      {estudiante && (
+        <section className="student-profile-card">
 
-        <div className="student-profile-section">
+          <div className="student-profile-banner">
 
-          <div className="student-profile-section-title">
-
-            <div className="student-profile-section-icon">
-              👤
+            <div className="student-profile-avatar">
+              {estudiante.nombre
+                ?.charAt(
+                  0
+                )
+                .toUpperCase()}
             </div>
 
             <div>
 
-              <h3>
-                Información personal
-              </h3>
+              <span>
+                ESTUDIANTE
+              </span>
+
+              <h2>
+                {
+                  estudiante.nombre
+                }
+              </h2>
 
               <p>
-                Datos de identificación de tu cuenta.
+                Universidad Autónoma del Cauca
               </p>
 
             </div>
 
           </div>
 
-          <div className="student-profile-grid">
+          <div className="student-profile-data">
 
-            {/* NOMBRE */}
+            <div>
 
-            <div className="student-profile-field">
-
-              <small>
-                Nombre completo
-              </small>
-
-              <strong>
-                {nombre}
-              </strong>
-
-            </div>
-
-            {/* CORREO */}
-
-            <div className="student-profile-field">
-
-              <small>
-                Correo institucional
-              </small>
-
-              <strong>
-                {correo}
-              </strong>
-
-            </div>
-
-            {/* ROL */}
-
-            <div className="student-profile-field">
-
-              <small>
-                Rol
-              </small>
-
-              <strong>
-                {capitalizar(
-                  rol
-                )}
-              </strong>
-
-            </div>
-
-            {/* ESTADO */}
-
-            <div className="student-profile-field">
-
-              <small>
-                Estado de la cuenta
-              </small>
+              <FaIdBadge />
 
               <div>
-
-                <span
-                  className={
-                    String(
-                      estado
-                    ).toLowerCase() ===
-                    "activo"
-                      ? "student-account-status active"
-                      : "student-account-status inactive"
-                  }
-                >
-                  {capitalizar(
-                    estado
-                  )}
+                <span>
+                  ID de usuario
                 </span>
 
+                <strong>
+                  #
+                  {
+                    estudiante.id_usuario
+                  }
+                </strong>
+              </div>
+
+            </div>
+
+            <div>
+
+              <FaEnvelope />
+
+              <div>
+                <span>
+                  Correo
+                </span>
+
+                <strong>
+                  {
+                    estudiante.correo
+                  }
+                </strong>
+              </div>
+
+            </div>
+
+            <div>
+
+              <FaUser />
+
+              <div>
+                <span>
+                  Rol
+                </span>
+
+                <strong>
+                  Estudiante
+                </strong>
+              </div>
+
+            </div>
+
+            <div>
+
+              <FaCheckCircle />
+
+              <div>
+                <span>
+                  Estado
+                </span>
+
+                <strong
+                  className={
+                    estudiante.estado ===
+                    "activo"
+                      ? "profile-active"
+                      : ""
+                  }
+                >
+                  {
+                    estudiante.estado
+                  }
+                </strong>
               </div>
 
             </div>
 
           </div>
 
-        </div>
+        </section>
+      )}
 
-        {/* INFORMACIÓN DEPORTIVA */}
+      <section className="student-summary-grid">
 
-        <div className="student-profile-section">
+        <article className="student-summary-card">
 
-          <div className="student-profile-section-title">
+          <div className="student-summary-icon blue">
+            <FaClock />
+          </div>
 
-            <div className="student-profile-section-icon sport">
-              🏅
-            </div>
+          <div>
+            <span>
+              Horas deportivas
+            </span>
 
-            <div>
+            <strong>
+              {formatearHoras(
+                resumen.horas_acumuladas
+              )}
+            </strong>
 
-              <h3>
-                SportU
-              </h3>
+            <small>
+              Acumuladas
+            </small>
+          </div>
 
-              <p>
-                Tu cuenta permite participar
-                en las actividades deportivas
-                disponibles.
-              </p>
+        </article>
 
-            </div>
+        <article className="student-summary-card">
+
+          <div className="student-summary-icon green">
+            <FaCheckCircle />
+          </div>
+
+          <div>
+            <span>
+              Asistencia
+            </span>
+
+            <strong>
+              {
+                resumen.porcentaje_asistencia ||
+                0
+              }
+              %
+            </strong>
+
+            <small>
+              Actividades evaluadas
+            </small>
+          </div>
+
+        </article>
+
+        <article className="student-summary-card">
+
+          <div className="student-summary-icon gold">
+            <FaIdBadge />
+          </div>
+
+          <div>
+            <span>
+              Inscripciones
+            </span>
+
+            <strong>
+              {
+                resumen.total_inscripciones ||
+                0
+              }
+            </strong>
+
+            <small>
+              Eventos deportivos
+            </small>
+          </div>
+
+        </article>
+
+        <article className="student-summary-card">
+
+          <div className="student-summary-icon purple">
+            <FaCertificate />
+          </div>
+
+          <div>
+            <span>
+              Certificados
+            </span>
+
+            <strong>
+              {
+                certificados.length
+              }
+            </strong>
+
+            <small>
+              Generados
+            </small>
+          </div>
+
+        </article>
+
+      </section>
+
+      <section className="student-card">
+
+        <div className="student-section-heading">
+
+          <div>
+
+            <h2>
+              Mis certificados
+            </h2>
+
+            <p>
+              Certificados de horas deportivas
+              generados por el coordinador.
+            </p>
 
           </div>
 
-          <div className="student-profile-message">
-
-            <div className="student-profile-message-icon">
-              ℹ️
-            </div>
-
-            <div>
-
-              <strong>
-                Cuenta de estudiante
-              </strong>
-
-              <p>
-                Desde SportU puedes consultar eventos,
-                realizar inscripciones y revisar el
-                estado de tu participación en las
-                actividades deportivas.
-              </p>
-
-            </div>
-
-          </div>
-
         </div>
 
-      </div>
+        {certificados.length ===
+        0 ? (
+          <div className="student-empty">
+
+            <FaCertificate />
+
+            <strong>
+              Todavía no tienes certificados
+            </strong>
+
+            <span>
+              Cuando se genere uno aparecerá en
+              esta sección.
+            </span>
+
+          </div>
+        ) : (
+          <div className="student-certificates-grid">
+
+            {certificados.map(
+              (
+                certificado
+              ) => (
+                <article
+                  key={
+                    certificado.id_certificado
+                  }
+                  className="student-certificate-card"
+                >
+
+                  <div className="student-certificate-top">
+
+                    <div className="student-cert-icon large">
+                      <FaCertificate />
+                    </div>
+
+                    <span>
+                      #
+                      {
+                        certificado.id_certificado
+                      }
+                    </span>
+
+                  </div>
+
+                  <span>
+                    CERTIFICADO DE HORAS
+                  </span>
+
+                  <h3>
+                    {formatearHoras(
+                      certificado.horas_certificadas
+                    )}
+                  </h3>
+
+                  <p>
+                    Horas deportivas certificadas
+                  </p>
+
+                  <div className="student-certificate-date">
+                    Generado el{" "}
+                    <strong>
+                      {formatearFecha(
+                        certificado.fecha_generacion
+                      )}
+                    </strong>
+                  </div>
+
+                </article>
+              )
+            )}
+
+          </div>
+        )}
+
+      </section>
 
     </div>
   );

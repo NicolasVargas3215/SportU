@@ -1,26 +1,125 @@
 import {
   useEffect,
-  useMemo,
   useState,
 } from "react";
 
 import {
-  useNavigate,
+  FaCalendarAlt,
+  FaCertificate,
+  FaCheckCircle,
+  FaClock,
+  FaClipboardList,
+  FaMapMarkerAlt,
+  FaRunning,
+} from "react-icons/fa";
+
+import {
+  Link,
 } from "react-router-dom";
 
 import {
-  obtenerEventosDisponibles,
-} from "../../services/inscripcionService";
+  obtenerResumenEstudiante,
+} from "../../services/estudianteService";
 
-import "./studentDashboard.css";
+// =====================================================
+// HELPERS
+// =====================================================
+
+const formatearFechaHora =
+  (
+    fecha
+  ) => {
+    if (
+      !fecha
+    ) {
+      return "—";
+    }
+
+    const objeto =
+      new Date(
+        String(
+          fecha
+        ).replace(
+          " ",
+          "T"
+        )
+      );
+
+    if (
+      Number.isNaN(
+        objeto.getTime()
+      )
+    ) {
+      return fecha;
+    }
+
+    return objeto.toLocaleString(
+      "es-CO",
+      {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }
+    );
+  };
+
+const formatearHoras =
+  (
+    valor
+  ) => {
+    const horas =
+      Number(
+        valor || 0
+      );
+
+    return `${horas
+      .toFixed(2)
+      .replace(
+        /\.?0+$/,
+        ""
+      )} h`;
+  };
+
+// =====================================================
+// COMPONENTE
+// =====================================================
 
 function DashboardEstudiante() {
-  const navigate = useNavigate();
-
   const [
-    eventos,
-    setEventos,
-  ] = useState([]);
+    datos,
+    setDatos,
+  ] = useState({
+    resumen: {
+      total_inscripciones:
+        0,
+
+      eventos_proximos:
+        0,
+
+      asistencias_confirmadas:
+        0,
+
+      asistencias_pendientes:
+        0,
+
+      horas_acumuladas:
+        0,
+
+      porcentaje_asistencia:
+        0,
+
+      certificados_generados:
+        0,
+    },
+
+    proximas_actividades:
+      [],
+
+    certificados_recientes:
+      [],
+  });
 
   const [
     cargando,
@@ -32,585 +131,530 @@ function DashboardEstudiante() {
     setError,
   ] = useState("");
 
-  // =====================================================
-  // OBTENER USUARIO
-  // =====================================================
+  let usuario =
+    null;
 
-  const obtenerUsuario = () => {
-    try {
-      const datos =
+  try {
+    usuario =
+      JSON.parse(
         localStorage.getItem(
           "usuario"
-        ) ||
-        localStorage.getItem(
-          "user"
-        );
-
-      if (!datos) {
-        return null;
-      }
-
-      return JSON.parse(datos);
-    } catch (error) {
-      return null;
-    }
-  };
-
-  const usuario =
-    obtenerUsuario();
-
-  const nombreCompleto =
-    usuario?.nombre ||
-    "Estudiante";
-
-  const primerNombre =
-    nombreCompleto
-      .trim()
-      .split(" ")[0];
-
-  // =====================================================
-  // CARGAR EVENTOS
-  // =====================================================
-
-  const cargarEventos = async () => {
-    try {
-      setCargando(true);
-      setError("");
-
-      const datos =
-        await obtenerEventosDisponibles();
-
-      setEventos(
-        Array.isArray(datos)
-          ? datos
-          : []
+        )
       );
-    } catch (err) {
-      console.error(err);
-
-      setError(
-        err.message ||
-          "No fue posible cargar los próximos eventos."
-      );
-    } finally {
-      setCargando(false);
-    }
-  };
+  } catch {
+    usuario =
+      null;
+  }
 
   useEffect(() => {
-    cargarEventos();
+    const cargar =
+      async () => {
+        try {
+          setCargando(
+            true
+          );
+
+          setError("");
+
+          const respuesta =
+            await obtenerResumenEstudiante();
+
+          setDatos({
+            resumen:
+              respuesta.resumen ||
+              {},
+
+            proximas_actividades:
+              respuesta.proximas_actividades ||
+              [],
+
+            certificados_recientes:
+              respuesta.certificados_recientes ||
+              [],
+          });
+        } catch (err) {
+          setError(
+            err.message ||
+              "No fue posible cargar tu información."
+          );
+        } finally {
+          setCargando(
+            false
+          );
+        }
+      };
+
+    cargar();
   }, []);
 
-  // =====================================================
-  // PRÓXIMOS EVENTOS
-  // =====================================================
-
-  const proximosEventos =
-    useMemo(() => {
-      const hoy = new Date();
-
-      hoy.setHours(
-        0,
-        0,
-        0,
-        0
-      );
-
-      return eventos
-        .filter((evento) => {
-          if (!evento.fecha) {
-            return true;
-          }
-
-          const fechaEvento =
-            new Date(
-              `${String(
-                evento.fecha
-              ).substring(
-                0,
-                10
-              )}T00:00:00`
-            );
-
-          return (
-            fechaEvento >= hoy
-          );
-        })
-        .sort((a, b) => {
-          const fechaA =
-            new Date(
-              `${String(
-                a.fecha
-              ).substring(
-                0,
-                10
-              )}T${a.hora || "00:00"}`
-            );
-
-          const fechaB =
-            new Date(
-              `${String(
-                b.fecha
-              ).substring(
-                0,
-                10
-              )}T${b.hora || "00:00"}`
-            );
-
-          return (
-            fechaA - fechaB
-          );
-        })
-        .slice(0, 3);
-    }, [eventos]);
-
-  // =====================================================
-  // FORMATEAR FECHA
-  // =====================================================
-
-  const formatearFecha = (
-    fecha
-  ) => {
-    if (!fecha) {
-      return "-";
-    }
-
-    const texto =
-      String(fecha).substring(
-        0,
-        10
-      );
-
-    const [
-      anio,
-      mes,
-      dia,
-    ] = texto.split("-");
-
-    if (
-      !anio ||
-      !mes ||
-      !dia
-    ) {
-      return texto;
-    }
-
-    const fechaLocal =
-      new Date(
-        Number(anio),
-        Number(mes) - 1,
-        Number(dia)
-      );
-
-    return fechaLocal.toLocaleDateString(
-      "es-CO",
-      {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      }
-    );
-  };
-
-  // =====================================================
-  // FORMATEAR HORA
-  // =====================================================
-
-  const formatearHora = (
-    hora
-  ) => {
-    if (!hora) {
-      return "-";
-    }
-
-    return String(hora)
-      .substring(0, 5);
-  };
-
-  // =====================================================
-  // ICONO DEL DEPORTE
-  // =====================================================
-
-  const obtenerIconoDeporte = (
-    deporte
-  ) => {
-    const nombre =
-      String(
-        deporte || ""
-      ).toLowerCase();
-
-    if (
-      nombre.includes(
-        "fut"
-      )
-    ) {
-      return "⚽";
-    }
-
-    if (
-      nombre.includes(
-        "baloncesto"
-      ) ||
-      nombre.includes(
-        "basket"
-      )
-    ) {
-      return "🏀";
-    }
-
-    if (
-      nombre.includes(
-        "vole"
-      )
-    ) {
-      return "🏐";
-    }
-
-    if (
-      nombre.includes(
-        "atlet"
-      )
-    ) {
-      return "🏃";
-    }
-
-    if (
-      nombre.includes(
-        "tenis"
-      )
-    ) {
-      return "🎾";
-    }
-
-    return "🏅";
-  };
-
-  // =====================================================
-  // IR A EVENTOS
-  // =====================================================
-
-  const verTodos = () => {
-    navigate(
-      "/estudiante/eventos"
-    );
-  };
-
-  // =====================================================
-  // RENDER
-  // =====================================================
+  const {
+    resumen,
+    proximas_actividades,
+    certificados_recientes,
+  } = datos;
 
   return (
-    <div className="student-dashboard">
+    <div className="student-page">
 
-      {/* =============================================== */}
-      {/* SALUDO */}
-      {/* =============================================== */}
+      <section className="student-hero">
 
-      <section className="student-welcome">
+        <div>
 
-        <h1>
-          ¡Hola, {primerNombre}!{" "}
-          <span
-            className="student-wave"
-          >
-            👋
+          <span className="student-eyebrow">
+            PORTAL ESTUDIANTE
           </span>
-        </h1>
 
-        <p>
-          Explora las actividades deportivas disponibles
-          y participa en la comunidad SportU.
-        </p>
+          <h1>
+            Hola,{" "}
+            {usuario?.nombre
+              ?.split(
+                " "
+              )[0] ||
+              "Estudiante"}
+          </h1>
 
-      </section>
+          <p>
+            Consulta los eventos deportivos de
+            la universidad, administra tus
+            inscripciones y revisa tus horas
+            acumuladas.
+          </p>
 
-      {/* =============================================== */}
-      {/* PRÓXIMOS EVENTOS */}
-      {/* =============================================== */}
+          <div className="student-hero-actions">
 
-      <section className="student-events-panel">
+            <Link
+              to="/estudiante/eventos"
+              className="student-primary-button"
+            >
+              <FaCalendarAlt />
 
-        <div className="student-events-header">
+              Explorar eventos
+            </Link>
 
-          <div>
+            <Link
+              to="/estudiante/inscripciones"
+              className="student-secondary-button"
+            >
+              <FaClipboardList />
 
-            <h2>
-              Próximos eventos
-            </h2>
-
-            <span>
-              Actividades deportivas disponibles
-            </span>
+              Mis inscripciones
+            </Link>
 
           </div>
-
-          <button
-            type="button"
-            className="student-view-all"
-            onClick={
-              verTodos
-            }
-          >
-            Ver todos
-          </button>
 
         </div>
 
-        {/* ============================================= */}
-        {/* CARGANDO */}
-        {/* ============================================= */}
+        <div className="student-hero-mark">
 
-        {cargando && (
+          <div className="student-hero-icon">
+            <FaRunning />
+          </div>
 
-          <div className="student-dashboard-loading">
+          <strong>
+            SportU
+          </strong>
 
-            <div
-              className="spinner-border spinner-border-sm text-primary"
-              role="status"
-            />
+          <span>
+            Vive el deporte universitario
+          </span>
+
+        </div>
+
+      </section>
+
+      {error && (
+        <div className="student-alert error">
+          {error}
+        </div>
+      )}
+
+      <section className="student-summary-grid">
+
+        <article className="student-summary-card">
+
+          <div className="student-summary-icon blue">
+            <FaClipboardList />
+          </div>
+
+          <div>
+            <span>
+              Inscripciones
+            </span>
+
+            <strong>
+              {
+                resumen.total_inscripciones ||
+                0
+              }
+            </strong>
+
+            <small>
+              Actividades registradas
+            </small>
+          </div>
+
+        </article>
+
+        <article className="student-summary-card">
+
+          <div className="student-summary-icon gold">
+            <FaCalendarAlt />
+          </div>
+
+          <div>
+            <span>
+              Próximos eventos
+            </span>
+
+            <strong>
+              {
+                resumen.eventos_proximos ||
+                0
+              }
+            </strong>
+
+            <small>
+              Actividades por realizar
+            </small>
+          </div>
+
+        </article>
+
+        <article className="student-summary-card">
+
+          <div className="student-summary-icon green">
+            <FaClock />
+          </div>
+
+          <div>
+            <span>
+              Horas acumuladas
+            </span>
+
+            <strong>
+              {formatearHoras(
+                resumen.horas_acumuladas
+              )}
+            </strong>
+
+            <small>
+              Por asistencia confirmada
+            </small>
+          </div>
+
+        </article>
+
+        <article className="student-summary-card">
+
+          <div className="student-summary-icon purple">
+            <FaCertificate />
+          </div>
+
+          <div>
+            <span>
+              Certificados
+            </span>
+
+            <strong>
+              {
+                resumen.certificados_generados ||
+                0
+              }
+            </strong>
+
+            <small>
+              Generados en SportU
+            </small>
+          </div>
+
+        </article>
+
+      </section>
+
+      <section className="student-progress-card">
+
+        <div className="student-progress-info">
+
+          <div>
 
             <span>
-              Cargando próximos eventos...
+              PARTICIPACIÓN DEPORTIVA
             </span>
+
+            <h2>
+              Tu asistencia
+            </h2>
+
+            <p>
+              Solo los eventos marcados como
+              Asistió aportan horas deportivas.
+            </p>
 
           </div>
 
-        )}
+          <strong>
+            {
+              resumen.porcentaje_asistencia ||
+              0
+            }
+            %
+          </strong>
 
-        {/* ============================================= */}
-        {/* ERROR */}
-        {/* ============================================= */}
+        </div>
 
-        {!cargando &&
-          error && (
+        <div className="student-progress-bar">
 
-            <div className="alert alert-danger mb-0">
+          <span
+            style={{
+              width: `${Math.min(
+                Number(
+                  resumen.porcentaje_asistencia ||
+                    0
+                ),
+                100
+              )}%`,
+            }}
+          />
 
-              {error}
+        </div>
 
-            </div>
+        <div className="student-progress-bottom">
 
-          )}
+          <span>
+            <FaCheckCircle />
 
-        {/* ============================================= */}
-        {/* SIN EVENTOS */}
-        {/* ============================================= */}
+            {
+              resumen.asistencias_confirmadas ||
+              0
+            }{" "}
+            asistencia(s)
+          </span>
 
-        {!cargando &&
-          !error &&
-          proximosEventos.length ===
-            0 && (
+          <span>
+            {
+              resumen.asistencias_pendientes ||
+              0
+            }{" "}
+            pendiente(s)
+          </span>
 
-            <div className="student-empty-events">
+        </div>
 
-              <div className="student-empty-icon">
-                🏅
-              </div>
+      </section>
 
-              <h3>
-                No hay próximos eventos
-              </h3>
+      <div className="student-dashboard-grid">
+
+        <section className="student-card">
+
+          <div className="student-section-heading">
+
+            <div>
+
+              <h2>
+                Próximas actividades
+              </h2>
 
               <p>
-                Actualmente no existen actividades
-                deportivas disponibles.
+                Eventos en los que ya estás
+                inscrito.
               </p>
 
             </div>
 
-          )}
+            <Link
+              to="/estudiante/inscripciones"
+            >
+              Ver todas
+            </Link>
 
-        {/* ============================================= */}
-        {/* LISTA DE EVENTOS */}
-        {/* ============================================= */}
+          </div>
 
-        {!cargando &&
-          !error &&
-          proximosEventos.length >
-            0 && (
+          {cargando ? (
+            <div className="student-loading">
+              Cargando actividades...
+            </div>
+          ) : proximas_actividades.length ===
+            0 ? (
+            <div className="student-empty">
 
-            <div className="student-event-list">
+              <FaCalendarAlt />
 
-              {proximosEventos.map(
-                (evento) => {
+              <strong>
+                Sin actividades próximas
+              </strong>
 
-                  const sinCupos =
-                    Number(
-                      evento.cupos_disponibles
-                    ) <= 0;
+              <span>
+                Explora los eventos deportivos
+                disponibles.
+              </span>
 
-                  return (
+              <Link
+                to="/estudiante/eventos"
+              >
+                Ver eventos
+              </Link>
 
-                    <article
-                      className="student-event-item"
-                      key={
-                        evento.id_evento
-                      }
-                    >
+            </div>
+          ) : (
+            <div className="student-upcoming-list">
 
-                      {/* ICONO */}
+              {proximas_actividades.map(
+                (
+                  actividad
+                ) => (
+                  <article
+                    key={
+                      actividad.id_inscripcion
+                    }
+                    className="student-upcoming-item"
+                  >
 
-                      <div className="student-sport-icon">
+                    <div className="student-upcoming-date">
 
-                        {obtenerIconoDeporte(
-                          evento.deporte
+                      <FaCalendarAlt />
+
+                    </div>
+
+                    <div className="student-upcoming-info">
+
+                      <strong>
+                        {
+                          actividad.evento
+                        }
+                      </strong>
+
+                      <span>
+                        {
+                          actividad.deporte
+                        }
+                      </span>
+
+                      <small>
+                        {formatearFechaHora(
+                          actividad.fecha_inicio
                         )}
+                      </small>
 
-                      </div>
+                      <small>
+                        <FaMapMarkerAlt />
 
-                      {/* INFORMACIÓN */}
+                        {
+                          actividad.lugar
+                        }
+                      </small>
 
-                      <div className="student-event-info">
+                    </div>
 
-                        <h3>
-                          {
-                            evento.nombre
-                          }
-                        </h3>
+                    <span className="student-hours-mini">
+                      {formatearHoras(
+                        actividad.duracion_horas
+                      )}
+                    </span>
 
-                        <div className="student-event-details">
-
-                          <span>
-                            📅{" "}
-                            {formatearFecha(
-                              evento.fecha
-                            )}
-                          </span>
-
-                          <span>
-                            🕐{" "}
-                            {formatearHora(
-                              evento.hora
-                            )}
-                          </span>
-
-                        </div>
-
-                        <div className="student-event-location">
-
-                          📍{" "}
-                          {
-                            evento.lugar ||
-                            "Lugar por definir"
-                          }
-
-                        </div>
-
-                      </div>
-
-                      {/* CUPOS */}
-
-                      <div className="student-event-capacity">
-
-                        {evento.inscrito ? (
-
-                          <span className="student-capacity-badge enrolled">
-                            Inscrito
-                          </span>
-
-                        ) : sinCupos ? (
-
-                          <span className="student-capacity-badge full">
-                            Sin cupos
-                          </span>
-
-                        ) : (
-
-                          <span className="student-capacity-badge available">
-                            Cupos disponibles
-                          </span>
-
-                        )}
-
-                        <strong>
-
-                          {
-                            evento.inscritos
-                          }{" "}
-                          /{" "}
-                          {
-                            evento.cupo_maximo
-                          }
-
-                        </strong>
-
-                      </div>
-
-                    </article>
-
-                  );
-                }
+                  </article>
+                )
               )}
 
             </div>
-
           )}
 
-      </section>
+        </section>
 
-      {/* =============================================== */}
-      {/* ACCESOS RÁPIDOS */}
-      {/* =============================================== */}
+        <section className="student-card">
 
-      <section className="student-quick-actions">
+          <div className="student-section-heading">
 
-        <button
-          type="button"
-          className="student-quick-card"
-          onClick={() =>
-            navigate(
-              "/estudiante/eventos"
-            )
-          }
-        >
+            <div>
 
-          <span className="student-quick-icon">
-            🏆
-          </span>
+              <h2>
+                Certificados
+              </h2>
 
-          <div>
+              <p>
+                Tus certificados más recientes.
+              </p>
 
-            <strong>
-              Eventos deportivos
-            </strong>
+            </div>
 
-            <small>
-              Consulta todas las actividades
-            </small>
+            <Link
+              to="/estudiante/perfil"
+            >
+              Mi perfil
+            </Link>
 
           </div>
 
-        </button>
+          {cargando ? (
+            <div className="student-loading">
+              Cargando certificados...
+            </div>
+          ) : certificados_recientes.length ===
+            0 ? (
+            <div className="student-empty">
 
-        <button
-          type="button"
-          className="student-quick-card"
-          onClick={() =>
-            navigate(
-              "/estudiante/inscripciones"
-            )
-          }
-        >
+              <FaCertificate />
 
-          <span className="student-quick-icon">
-            📋
-          </span>
+              <strong>
+                Sin certificados
+              </strong>
 
-          <div>
+              <span>
+                Cuando el coordinador genere uno,
+                aparecerá aquí.
+              </span>
 
-            <strong>
-              Mis inscripciones
-            </strong>
+            </div>
+          ) : (
+            <div className="student-cert-list">
 
-            <small>
-              Revisa tus eventos registrados
-            </small>
+              {certificados_recientes.map(
+                (
+                  certificado
+                ) => (
+                  <article
+                    key={
+                      certificado.id_certificado
+                    }
+                    className="student-cert-item"
+                  >
 
-          </div>
+                    <div className="student-cert-icon">
+                      <FaCertificate />
+                    </div>
 
-        </button>
+                    <div>
 
-      </section>
+                      <strong>
+                        Certificado #
+                        {
+                          certificado.id_certificado
+                        }
+                      </strong>
+
+                      <span>
+                        {formatearHoras(
+                          certificado.horas_certificadas
+                        )}
+                      </span>
+
+                      <small>
+                        {formatearFechaHora(
+                          certificado.fecha_generacion
+                        )}
+                      </small>
+
+                    </div>
+
+                  </article>
+                )
+              )}
+
+            </div>
+          )}
+
+        </section>
+
+      </div>
 
     </div>
   );

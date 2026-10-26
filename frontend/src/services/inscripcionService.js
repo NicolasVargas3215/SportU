@@ -5,116 +5,116 @@ const API_URL =
 // TOKEN
 // =====================================================
 
-const obtenerToken = () => {
-  return localStorage.getItem("token");
-};
-
-// =====================================================
-// HEADERS
-// =====================================================
-
-const obtenerHeaders = () => {
-  return {
-    Authorization: `Bearer ${obtenerToken()}`,
-  };
-};
-
-// =====================================================
-// PROCESAR RESPUESTA
-// =====================================================
-
-const procesarRespuesta = async (
-  respuesta,
-  mensajePorDefecto
-) => {
-  let datos = {};
-
-  try {
-    datos = await respuesta.json();
-  } catch (error) {
-    datos = {};
-  }
-
-  if (!respuesta.ok) {
-    throw new Error(
-      datos.mensaje ||
-        mensajePorDefecto
+const obtenerToken =
+  () =>
+    localStorage.getItem(
+      "token"
     );
-  }
 
-  return datos;
-};
+const headersAuth =
+  () => ({
+    Authorization:
+      `Bearer ${obtenerToken()}`,
+  });
 
 // =====================================================
-// OBTENER EVENTOS DISPONIBLES
+// RESPUESTA
+// =====================================================
+
+const procesarRespuesta =
+  async (
+    respuesta,
+    mensajePredeterminado
+  ) => {
+    let datos = {};
+
+    try {
+      datos =
+        await respuesta.json();
+    } catch {
+      datos = {};
+    }
+
+    if (
+      !respuesta.ok
+    ) {
+      throw new Error(
+        datos.mensaje ||
+          mensajePredeterminado
+      );
+    }
+
+    return datos;
+  };
+
+// =====================================================
+// EVENTOS DISPONIBLES
 // =====================================================
 
 export const obtenerEventosDisponibles =
   async () => {
-    const respuesta = await fetch(
-      `${API_URL}/eventos`,
-      {
-        method: "GET",
-        headers: obtenerHeaders(),
-      }
-    );
-
-    const datos =
-      await procesarRespuesta(
-        respuesta,
-        "Error al consultar los eventos disponibles"
+    const respuesta =
+      await fetch(
+        `${API_URL}/eventos`,
+        {
+          headers:
+            headersAuth(),
+        }
       );
-
-    return Array.isArray(
-      datos.eventos
-    )
-      ? datos.eventos
-      : [];
-  };
-
-// =====================================================
-// REGISTRAR INSCRIPCIÓN
-// =====================================================
-
-export const registrarInscripcion =
-  async (idEvento) => {
-    const respuesta = await fetch(
-      `${API_URL}/eventos/${idEvento}`,
-      {
-        method: "POST",
-        headers: obtenerHeaders(),
-      }
-    );
 
     return procesarRespuesta(
       respuesta,
-      "Error al realizar la inscripción"
+      "No fue posible consultar los eventos disponibles."
     );
   };
 
 // =====================================================
-// OBTENER MIS INSCRIPCIONES
+// INSCRIBIRSE
+// =====================================================
+
+export const registrarInscripcion =
+  async (
+    idEvento
+  ) => {
+    const respuesta =
+      await fetch(
+        `${API_URL}/eventos/${idEvento}`,
+        {
+          method:
+            "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json",
+
+            ...headersAuth(),
+          },
+        }
+      );
+
+    return procesarRespuesta(
+      respuesta,
+      "No fue posible registrar la inscripción."
+    );
+  };
+
+// =====================================================
+// MIS INSCRIPCIONES
 // =====================================================
 
 export const obtenerMisInscripciones =
   async () => {
-    const respuesta = await fetch(
-      `${API_URL}/mis-inscripciones`,
-      {
-        method: "GET",
-        headers: obtenerHeaders(),
-      }
-    );
-
-    const datos =
-      await procesarRespuesta(
-        respuesta,
-        "Error al consultar tus inscripciones"
+    const respuesta =
+      await fetch(
+        `${API_URL}/mis-inscripciones`,
+        {
+          headers:
+            headersAuth(),
+        }
       );
 
-    return Array.isArray(
-      datos.inscripciones
-    )
-      ? datos.inscripciones
-      : [];
+    return procesarRespuesta(
+      respuesta,
+      "No fue posible consultar tus inscripciones."
+    );
   };

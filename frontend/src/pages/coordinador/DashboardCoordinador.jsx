@@ -1,252 +1,378 @@
 import {
+  useEffect,
+  useState,
+} from "react";
+
+import {
+  FaBasketballBall,
+  FaBoxOpen,
   FaCalendarAlt,
   FaClock,
-  FaDumbbell,
   FaExchangeAlt,
-  FaFutbol,
   FaUsers,
 } from "react-icons/fa";
 
-function DashboardCoordinador() {
-  // =====================================================
-  // USUARIO
-  // =====================================================
+import {
+  obtenerDashboardCoordinador,
+} from "../../services/dashboardService";
 
-  let usuario = null;
+// =====================================================
+// HELPERS
+// =====================================================
 
-  try {
-    const usuarioGuardado =
-      localStorage.getItem(
-        "usuario"
+const formatearNumero =
+  (
+    valor
+  ) => {
+    const numero =
+      Number(
+        valor || 0
       );
 
+    return numero.toLocaleString(
+      "es-CO"
+    );
+  };
+
+const formatearHoras =
+  (
+    valor
+  ) => {
+    const numero =
+      Number(
+        valor || 0
+      );
+
+    return numero
+      .toFixed(2)
+      .replace(
+        /\.?0+$/,
+        ""
+      );
+  };
+
+// =====================================================
+// COMPONENTE
+// =====================================================
+
+function DashboardCoordinador() {
+  const [
+    resumen,
+    setResumen,
+  ] = useState({
+    deportes_activos:
+      0,
+
+    eventos_activos:
+      0,
+
+    unidades_inventario:
+      0,
+
+    prestamos_activos:
+      0,
+
+    estudiantes_activos:
+      0,
+
+    horas_totales:
+      0,
+
+    certificados_generados:
+      0,
+
+    asistencias_pendientes:
+      0,
+  });
+
+  const [
+    cargando,
+    setCargando,
+  ] = useState(true);
+
+  const [
+    error,
+    setError,
+  ] = useState("");
+
+  let usuario =
+    null;
+
+  try {
     usuario =
-      usuarioGuardado
-        ? JSON.parse(
-            usuarioGuardado
-          )
-        : null;
+      JSON.parse(
+        localStorage.getItem(
+          "usuario"
+        )
+      );
   } catch {
-    usuario = null;
+    usuario =
+      null;
   }
 
-  const primerNombre =
-    usuario?.nombre
-      ?.trim()
-      ?.split(" ")[0] ||
-    "Coordinador";
-
   // =====================================================
-  // TARJETAS
+  // CARGAR DASHBOARD
   // =====================================================
 
-  const estadisticas = [
-    {
-      titulo:
-        "Deportes",
-      valor:
-        "8",
-      detalle:
-        "Activos",
-      icono:
-        <FaFutbol />,
-      tipo:
-        "blue",
-    },
+  useEffect(() => {
+    const cargar =
+      async () => {
+        try {
+          setCargando(
+            true
+          );
 
-    {
-      titulo:
-        "Eventos",
-      valor:
-        "12",
-      detalle:
-        "Registrados",
-      icono:
-        <FaCalendarAlt />,
-      tipo:
-        "gold",
-    },
+          setError("");
 
-    {
-      titulo:
-        "Inventario",
-      valor:
-        "35",
-      detalle:
-        "Implementos",
-      icono:
-        <FaDumbbell />,
-      tipo:
-        "blue-light",
-    },
+          const datos =
+            await obtenerDashboardCoordinador();
 
-    {
-      titulo:
-        "Préstamos",
-      valor:
-        "5",
-      detalle:
-        "Pendientes",
-      icono:
-        <FaExchangeAlt />,
-      tipo:
-        "gold-light",
-    },
+          setResumen(
+            datos.resumen ||
+              {}
+          );
+        } catch (err) {
+          setError(
+            err.message ||
+              "No fue posible cargar el panel."
+          );
+        } finally {
+          setCargando(
+            false
+          );
+        }
+      };
 
-    {
-      titulo:
-        "Estudiantes",
-      valor:
-        "256",
-      detalle:
-        "Registrados",
-      icono:
-        <FaUsers />,
-      tipo:
-        "blue",
-    },
+    cargar();
+  }, []);
 
-    {
-      titulo:
-        "Horas deportivas",
-      valor:
-        "1.248",
-      detalle:
-        "Acumuladas",
-      icono:
-        <FaClock />,
-      tipo:
-        "gold",
-    },
-  ];
+  // =====================================================
+  // RENDER
+  // =====================================================
 
   return (
-    <div className="sportu-dashboard-page">
+    <div>
 
-      {/* HEADER */}
+      <div className="sportu-page-heading">
 
-      <div className="sportu-dashboard-header">
+        <h2>
+          ¡Hola,{" "}
+          {usuario?.nombre
+            ?.split(
+              " "
+            )[0] ||
+            "Coordinador"}
+          !
+        </h2>
 
-        <div>
-
-          <span className="sportu-dashboard-eyebrow">
-            Panel administrativo
-          </span>
-
-          <h1>
-            ¡Hola, {primerNombre}!
-          </h1>
-
-          <p>
-            Gestiona la actividad deportiva de
-            Uniautónoma del Cauca desde un solo lugar.
-          </p>
-
-        </div>
-
-        <div className="sportu-dashboard-badge">
-
-          <span>
-            SPORTU
-          </span>
-
-          <strong>
-            Gestión deportiva
-          </strong>
-
-        </div>
+        <p>
+          Panel de administración deportiva
+        </p>
 
       </div>
 
-      {/* BANNER */}
+      {error && (
+        <div
+          style={{
+            marginBottom:
+              "18px",
 
-      <section className="sportu-welcome-banner">
+            padding:
+              "12px 14px",
 
-        <div className="sportu-welcome-decoration one" />
-        <div className="sportu-welcome-decoration two" />
+            border:
+              "1px solid #efc9cd",
 
-        <div className="sportu-welcome-content">
+            borderRadius:
+              "8px",
 
-          <span>
-            UNIAUTÓNOMA DEL CAUCA
-          </span>
+            background:
+              "#fff1f2",
 
-          <h2>
-            Sistema de Registro de Eventos Deportivos
-          </h2>
+            color:
+              "#b42335",
 
-          <p>
-            Administra deportes, eventos,
-            inventario, préstamos y seguimiento
-            de horas deportivas.
-          </p>
+            fontSize:
+              "12px",
+          }}
+        >
+          {error}
+        </div>
+      )}
+
+      {cargando ? (
+        <div
+          style={{
+            padding:
+              "30px",
+
+            color:
+              "#718096",
+          }}
+        >
+          Cargando información del sistema...
+        </div>
+      ) : (
+        <div className="sportu-dashboard-grid">
+
+          {/* DEPORTES */}
+
+          <div className="dashboard-card card-blue">
+
+            <FaBasketballBall />
+
+            <div>
+
+              <strong>
+                {formatearNumero(
+                  resumen.deportes_activos
+                )}
+              </strong>
+
+              <span>
+                Deportes
+              </span>
+
+            </div>
+
+            <small>
+              Activos
+            </small>
+
+          </div>
+
+          {/* EVENTOS */}
+
+          <div className="dashboard-card card-purple">
+
+            <FaCalendarAlt />
+
+            <div>
+
+              <strong>
+                {formatearNumero(
+                  resumen.eventos_activos
+                )}
+              </strong>
+
+              <span>
+                Eventos
+              </span>
+
+            </div>
+
+            <small>
+              Activos
+            </small>
+
+          </div>
+
+          {/* INVENTARIO */}
+
+          <div className="dashboard-card card-green">
+
+            <FaBoxOpen />
+
+            <div>
+
+              <strong>
+                {formatearNumero(
+                  resumen.unidades_inventario
+                )}
+              </strong>
+
+              <span>
+                Inventario
+              </span>
+
+            </div>
+
+            <small>
+              Unidades
+            </small>
+
+          </div>
+
+          {/* PRÉSTAMOS */}
+
+          <div className="dashboard-card card-orange">
+
+            <FaExchangeAlt />
+
+            <div>
+
+              <strong>
+                {formatearNumero(
+                  resumen.prestamos_activos
+                )}
+              </strong>
+
+              <span>
+                Préstamos
+              </span>
+
+            </div>
+
+            <small>
+              Pendientes
+            </small>
+
+          </div>
+
+          {/* ESTUDIANTES */}
+
+          <div className="dashboard-card card-cyan">
+
+            <FaUsers />
+
+            <div>
+
+              <strong>
+                {formatearNumero(
+                  resumen.estudiantes_activos
+                )}
+              </strong>
+
+              <span>
+                Estudiantes
+              </span>
+
+            </div>
+
+            <small>
+              Activos
+            </small>
+
+          </div>
+
+          {/* HORAS */}
+
+          <div className="dashboard-card card-red">
+
+            <FaClock />
+
+            <div>
+
+              <strong>
+                {formatearHoras(
+                  resumen.horas_totales
+                )}
+              </strong>
+
+              <span>
+                Horas totales
+              </span>
+
+            </div>
+
+            <small>
+              Acumuladas
+            </small>
+
+          </div>
 
         </div>
-
-        <div className="sportu-welcome-mark">
-          S
-        </div>
-
-      </section>
-
-      {/* TÍTULO */}
-
-      <div className="sportu-dashboard-section-heading">
-
-        <div>
-
-          <h2>
-            Resumen general
-          </h2>
-
-          <p>
-            Información principal del área deportiva.
-          </p>
-
-        </div>
-
-      </div>
-
-      {/* CARDS */}
-
-      <div className="sportu-dashboard-grid">
-
-        {estadisticas.map(
-          (estadistica) => (
-
-            <article
-              key={
-                estadistica.titulo
-              }
-              className={`dashboard-card dashboard-${estadistica.tipo}`}
-            >
-
-              <div className="dashboard-card-icon">
-                {estadistica.icono}
-              </div>
-
-              <div className="dashboard-card-content">
-
-                <span>
-                  {estadistica.titulo}
-                </span>
-
-                <strong>
-                  {estadistica.valor}
-                </strong>
-
-                <small>
-                  {estadistica.detalle}
-                </small>
-
-              </div>
-
-            </article>
-
-          )
-        )}
-
-      </div>
+      )}
 
     </div>
   );
