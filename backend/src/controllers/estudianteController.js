@@ -11,6 +11,17 @@ const DURACION_EVENTO_SQL = `
       GREATEST(
         TIMESTAMPDIFF(
           MINUTE,
+          CONCAT('2000-01-01 ', e.hora_inicio),
+          CONCAT('2000-01-01 ', e.hora_fin)
+        ) / 60.0,
+        0
+      ),
+      0
+    ),
+    NULLIF(
+      GREATEST(
+        TIMESTAMPDIFF(
+          MINUTE,
           e.fecha_inicio,
           e.fecha_fin
         ) / 60.0,
@@ -20,6 +31,62 @@ const DURACION_EVENTO_SQL = `
     ),
     e.duracion_horas,
     0
+  )
+`;
+
+const HORAS_ASISTIDAS_SQL = `
+  COALESCE(
+    (
+      SELECT SUM(
+        CASE
+          WHEN a.estado = 'Asistió'
+          THEN TIMESTAMPDIFF(
+            MINUTE,
+            CONCAT(s.fecha_sesion, ' ', s.hora_inicio),
+            CONCAT(s.fecha_sesion, ' ', s.hora_fin)
+          ) / 60.0
+          ELSE 0
+        END
+      )
+      FROM sesiones_evento s
+      LEFT JOIN asistencias_sesion a
+        ON a.id_sesion = s.id_sesion
+        AND a.id_inscripcion = i.id_inscripcion
+      WHERE s.id_evento = e.id_evento
+    ),
+    CASE
+      WHEN i.asistencia = 'Asistió'
+      THEN ${DURACION_EVENTO_SQL}
+      ELSE 0
+    END
+  )
+`;
+
+const HORAS_EVALUADAS_SQL = `
+  COALESCE(
+    (
+      SELECT SUM(
+        CASE
+          WHEN a.estado IN ('Asistió', 'No asistió')
+          THEN TIMESTAMPDIFF(
+            MINUTE,
+            CONCAT(s.fecha_sesion, ' ', s.hora_inicio),
+            CONCAT(s.fecha_sesion, ' ', s.hora_fin)
+          ) / 60.0
+          ELSE 0
+        END
+      )
+      FROM sesiones_evento s
+      LEFT JOIN asistencias_sesion a
+        ON a.id_sesion = s.id_sesion
+        AND a.id_inscripcion = i.id_inscripcion
+      WHERE s.id_evento = e.id_evento
+    ),
+    CASE
+      WHEN i.asistencia IN ('Asistió', 'No asistió')
+      THEN ${DURACION_EVENTO_SQL}
+      ELSE 0
+    END
   )
 `;
 
@@ -203,13 +270,7 @@ const obtenerResumenEstudiante =
               SELECT
                 ROUND(
                   COALESCE(
-                    SUM(
-                      CASE
-                        WHEN i.asistencia = 'Asistió'
-                        THEN ${DURACION_EVENTO_SQL}
-                        ELSE 0
-                      END
-                    ),
+                    SUM(${HORAS_ASISTIDAS_SQL}),
                     0
                   ),
                   2
@@ -230,17 +291,7 @@ const obtenerResumenEstudiante =
               SELECT
                 ROUND(
                   COALESCE(
-                    SUM(
-                      CASE
-                        WHEN i.asistencia
-                          IN (
-                            'Asistió',
-                            'No asistió'
-                          )
-                        THEN ${DURACION_EVENTO_SQL}
-                        ELSE 0
-                      END
-                    ),
+                    SUM(${HORAS_EVALUADAS_SQL}),
                     0
                   ),
                   2

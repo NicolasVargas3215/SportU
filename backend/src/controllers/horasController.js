@@ -30,6 +30,64 @@ const DURACION_EVENTO_SQL = `
   )
 `;
 
+// Para eventos con programación semanal, las horas se calculan por sesión.
+// El respaldo antiguo solo se usa en eventos que todavía no tienen sesiones.
+const HORAS_ASISTIDAS_SQL = `
+  COALESCE(
+    (
+      SELECT SUM(
+        CASE
+          WHEN a.estado = 'Asistió'
+          THEN TIMESTAMPDIFF(
+            MINUTE,
+            CONCAT(s.fecha_sesion, ' ', s.hora_inicio),
+            CONCAT(s.fecha_sesion, ' ', s.hora_fin)
+          ) / 60.0
+          ELSE 0
+        END
+      )
+      FROM sesiones_evento s
+      LEFT JOIN asistencias_sesion a
+        ON a.id_sesion = s.id_sesion
+        AND a.id_inscripcion = i.id_inscripcion
+      WHERE s.id_evento = e.id_evento
+    ),
+    CASE
+      WHEN i.asistencia = 'Asistió'
+      THEN ${DURACION_EVENTO_SQL}
+      ELSE 0
+    END
+  )
+`;
+
+const HORAS_EVALUADAS_SQL = `
+  COALESCE(
+    (
+      SELECT SUM(
+        CASE
+          WHEN a.estado IN ('Asistió', 'No asistió')
+          THEN TIMESTAMPDIFF(
+            MINUTE,
+            CONCAT(s.fecha_sesion, ' ', s.hora_inicio),
+            CONCAT(s.fecha_sesion, ' ', s.hora_fin)
+          ) / 60.0
+          ELSE 0
+        END
+      )
+      FROM sesiones_evento s
+      LEFT JOIN asistencias_sesion a
+        ON a.id_sesion = s.id_sesion
+        AND a.id_inscripcion = i.id_inscripcion
+      WHERE s.id_evento = e.id_evento
+    ),
+    CASE
+      WHEN i.asistencia IN ('Asistió', 'No asistió')
+      THEN ${DURACION_EVENTO_SQL}
+      ELSE 0
+    END
+  )
+`;
+
 // =====================================================
 // HELPERS
 // =====================================================
@@ -178,13 +236,7 @@ const obtenerEstudiantesHoras =
 
             ROUND(
               COALESCE(
-                SUM(
-                  CASE
-                    WHEN i.asistencia = 'Asistió'
-                    THEN ${DURACION_EVENTO_SQL}
-                    ELSE 0
-                  END
-                ),
+                SUM(${HORAS_ASISTIDAS_SQL}),
                 0
               ),
               2
@@ -192,17 +244,7 @@ const obtenerEstudiantesHoras =
 
             ROUND(
               COALESCE(
-                SUM(
-                  CASE
-                    WHEN i.asistencia
-                      IN (
-                        'Asistió',
-                        'No asistió'
-                      )
-                    THEN ${DURACION_EVENTO_SQL}
-                    ELSE 0
-                  END
-                ),
+                SUM(${HORAS_EVALUADAS_SQL}),
                 0
               ),
               2
@@ -247,45 +289,19 @@ const obtenerEstudiantesHoras =
             CASE
               WHEN
                 COALESCE(
-                  SUM(
-                    CASE
-                      WHEN i.asistencia
-                        IN (
-                          'Asistió',
-                          'No asistió'
-                        )
-                      THEN ${DURACION_EVENTO_SQL}
-                      ELSE 0
-                    END
-                  ),
+                  SUM(${HORAS_EVALUADAS_SQL}),
                   0
                 ) > 0
               THEN
                 ROUND(
                   (
                     COALESCE(
-                      SUM(
-                        CASE
-                          WHEN i.asistencia = 'Asistió'
-                          THEN ${DURACION_EVENTO_SQL}
-                          ELSE 0
-                        END
-                      ),
+                      SUM(${HORAS_ASISTIDAS_SQL}),
                       0
                     )
                     /
                     COALESCE(
-                      SUM(
-                        CASE
-                          WHEN i.asistencia
-                            IN (
-                              'Asistió',
-                              'No asistió'
-                            )
-                          THEN ${DURACION_EVENTO_SQL}
-                          ELSE 0
-                        END
-                      ),
+                      SUM(${HORAS_EVALUADAS_SQL}),
                       0
                     )
                   ) * 100,
@@ -483,28 +499,44 @@ const obtenerDetalleHorasEstudiante =
 
             d.nombre AS deporte,
 
+            s.id_sesion,
+
             DATE_FORMAT(
-              e.fecha_inicio,
+              COALESCE(s.fecha_sesion, e.fecha_inicio),
               '%Y-%m-%d %H:%i:%s'
             ) AS fecha_inicio,
 
             DATE_FORMAT(
-              e.fecha_fin,
+              COALESCE(s.fecha_sesion, e.fecha_fin),
               '%Y-%m-%d %H:%i:%s'
             ) AS fecha_fin,
 
             ROUND(
-              ${DURACION_EVENTO_SQL},
+              COALESCE(
+                TIMESTAMPDIFF(
+                  MINUTE,
+                  CONCAT(s.fecha_sesion, ' ', s.hora_inicio),
+                  CONCAT(s.fecha_sesion, ' ', s.hora_fin)
+                ) / 60.0,
+                ${DURACION_EVENTO_SQL}
+              ),
               2
             ) AS duracion_horas,
 
-            i.asistencia,
+            COALESCE(a.estado, i.asistencia) AS asistencia,
 
             CASE
-              WHEN i.asistencia = 'Asistió'
+              WHEN COALESCE(a.estado, i.asistencia) = 'Asistió'
               THEN
                 ROUND(
-                  ${DURACION_EVENTO_SQL},
+                  COALESCE(
+                    TIMESTAMPDIFF(
+                      MINUTE,
+                      CONCAT(s.fecha_sesion, ' ', s.hora_inicio),
+                      CONCAT(s.fecha_sesion, ' ', s.hora_fin)
+                    ) / 60.0,
+                    ${DURACION_EVENTO_SQL}
+                  ),
                   2
                 )
               ELSE 0
@@ -522,11 +554,24 @@ const obtenerDetalleHorasEstudiante =
               d.id_deporte =
               e.id_deporte
 
+          LEFT JOIN sesiones_evento s
+            ON
+              s.id_evento =
+              e.id_evento
+
+          LEFT JOIN asistencias_sesion a
+            ON
+              a.id_sesion =
+              s.id_sesion
+              AND
+              a.id_inscripcion =
+              i.id_inscripcion
+
           WHERE
             i.id_usuario = ?
 
           ORDER BY
-            e.fecha_inicio DESC
+            COALESCE(s.fecha_sesion, DATE(e.fecha_inicio)) DESC
           `,
           [
             idEstudiante,
@@ -778,13 +823,7 @@ const generarCertificado =
 
             ROUND(
               COALESCE(
-                SUM(
-                  CASE
-                    WHEN i.asistencia = 'Asistió'
-                    THEN ${DURACION_EVENTO_SQL}
-                    ELSE 0
-                  END
-                ),
+                SUM(${HORAS_ASISTIDAS_SQL}),
                 0
               ),
               2
@@ -792,17 +831,7 @@ const generarCertificado =
 
             ROUND(
               COALESCE(
-                SUM(
-                  CASE
-                    WHEN i.asistencia
-                      IN (
-                        'Asistió',
-                        'No asistió'
-                      )
-                    THEN ${DURACION_EVENTO_SQL}
-                    ELSE 0
-                  END
-                ),
+                SUM(${HORAS_EVALUADAS_SQL}),
                 0
               ),
               2

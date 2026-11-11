@@ -20,3 +20,21 @@ export const iniciarSesion = async (correo, contrasena) => {
 
   return datos;
 };
+
+export const iniciarSesionConGoogle = async (credential) => {
+  const respuesta = await fetch(`${API_URL}/google`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ credential }),
+  });
+
+  const datos = await respuesta.json();
+
+  if (!respuesta.ok) {
+    throw new Error(datos.mensaje || "Error al iniciar sesión con Google");
+  }
+
+  return datos;
+};

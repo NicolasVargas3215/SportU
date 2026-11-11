@@ -10,6 +10,49 @@ const DURACION_EVENTO_SQL = `
       GREATEST(
         TIMESTAMPDIFF(
           MINUTE,
+          CONCAT('2000-01-01 ', e.hora_inicio),
+          CONCAT('2000-01-01 ', e.hora_fin)
+        ) / 60.0,
+        0
+      ),
+      0
+    ),
+    NULLIF(
+      GREATEST(
+        TIMESTAMPDIFF(
+          MINUTE,
+          e.fecha_inicio,
+          e.fecha_fin
+        ) / 60.0,
+        0
+      ),
+      0
+    ),
+    e.duracion_horas,
+    0
+  )
+`;
+
+const DURACION_TOTAL_EVENTO_SQL = `
+  COALESCE(
+    NULLIF(
+      (
+        SELECT SUM(
+          TIMESTAMPDIFF(
+            MINUTE,
+            CONCAT(s.fecha_sesion, ' ', s.hora_inicio),
+            CONCAT(s.fecha_sesion, ' ', s.hora_fin)
+          ) / 60.0
+        )
+        FROM sesiones_evento s
+        WHERE s.id_evento = e.id_evento
+      ),
+      0
+    ),
+    NULLIF(
+      GREATEST(
+        TIMESTAMPDIFF(
+          MINUTE,
           e.fecha_inicio,
           e.fecha_fin
         ) / 60.0,
@@ -34,12 +77,55 @@ const convertirNumero = (valor) => {
     : 0;
 };
 
+const normalizarAsistencia = (valor) => {
+  const estado = String(valor || "")
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+  const equivalencias = {
+    pendiente: "Pendiente",
+    asistio: "Asistió",
+    "no asistio": "No asistió",
+  };
+
+  return equivalencias[estado] || null;
+};
+
+const asistenciaLegacy = (valor) => {
+  const equivalencias = {
+    Pendiente: "pendiente",
+    "Asistió": "asistio",
+    "No asistió": "no_asistio",
+  };
+
+  return equivalencias[valor] || "pendiente";
+};
+
 const normalizarEvento = (evento) => ({
   ...evento,
+
+  hora_inicio: evento.hora_inicio
+    ? String(evento.hora_inicio).slice(0, 5)
+    : null,
+
+  hora_fin: evento.hora_fin
+    ? String(evento.hora_fin).slice(0, 5)
+    : null,
+
+  dias_semana: evento.dias_semana
+    ? String(evento.dias_semana).split(",")
+    : [],
 
   duracion_horas:
     convertirNumero(
       evento.duracion_horas
+    ),
+
+  duracion_total_horas:
+    convertirNumero(
+      evento.duracion_total_horas
     ),
 
   cupo_maximo:
@@ -251,12 +337,34 @@ const obtenerActividadesDocente =
               '%Y-%m-%d %H:%i:%s'
             ) AS fecha_fin,
 
+            e.hora_inicio,
+            e.hora_fin,
+
+            (
+              SELECT GROUP_CONCAT(
+                ed.dia_semana
+                ORDER BY FIELD(
+                  ed.dia_semana,
+                  'lunes', 'martes', 'miercoles', 'jueves',
+                  'viernes', 'sabado', 'domingo'
+                )
+                SEPARATOR ','
+              )
+              FROM evento_dias_semana ed
+              WHERE ed.id_evento = e.id_evento
+            ) AS dias_semana,
+
             e.lugar,
 
             ROUND(
               ${DURACION_EVENTO_SQL},
               2
             ) AS duracion_horas,
+
+            ROUND(
+              ${DURACION_TOTAL_EVENTO_SQL},
+              2
+            ) AS duracion_total_horas,
 
             e.cupo_maximo,
             e.estado,
@@ -358,6 +466,11 @@ const obtenerActividadDocente =
           req.params.id
         );
 
+      const idSesionSolicitada =
+        req.query.id_sesion
+          ? Number(req.query.id_sesion)
+          : null;
+
       if (
         !Number.isInteger(
           idEvento
@@ -394,12 +507,34 @@ const obtenerActividadDocente =
               '%Y-%m-%d %H:%i:%s'
             ) AS fecha_fin,
 
+            e.hora_inicio,
+            e.hora_fin,
+
+            (
+              SELECT GROUP_CONCAT(
+                ed.dia_semana
+                ORDER BY FIELD(
+                  ed.dia_semana,
+                  'lunes', 'martes', 'miercoles', 'jueves',
+                  'viernes', 'sabado', 'domingo'
+                )
+                SEPARATOR ','
+              )
+              FROM evento_dias_semana ed
+              WHERE ed.id_evento = e.id_evento
+            ) AS dias_semana,
+
             e.lugar,
 
             ROUND(
               ${DURACION_EVENTO_SQL},
               2
             ) AS duracion_horas,
+
+            ROUND(
+              ${DURACION_TOTAL_EVENTO_SQL},
+              2
+            ) AS duracion_total_horas,
 
             e.cupo_maximo,
             e.estado,
@@ -481,6 +616,49 @@ const obtenerActividadDocente =
           eventos[0]
         );
 
+      const [sesiones] =
+        await pool.query(
+          `
+          SELECT
+            s.id_sesion,
+            DATE_FORMAT(
+              s.fecha_sesion,
+              '%Y-%m-%d'
+            ) AS fecha_sesion,
+            TIME_FORMAT(
+              s.hora_inicio,
+              '%H:%i'
+            ) AS hora_inicio,
+            TIME_FORMAT(
+              s.hora_fin,
+              '%H:%i'
+            ) AS hora_fin,
+            s.estado,
+            COUNT(a.id_asistencia) AS asistencias_registradas
+          FROM sesiones_evento s
+          LEFT JOIN asistencias_sesion a
+            ON a.id_sesion = s.id_sesion
+          WHERE s.id_evento = ?
+          GROUP BY
+            s.id_sesion,
+            s.fecha_sesion,
+            s.hora_inicio,
+            s.hora_fin,
+            s.estado
+          ORDER BY s.fecha_sesion ASC
+          `,
+          [idEvento]
+        );
+
+      const idSesion =
+        sesiones.some(
+          (sesion) =>
+            Number(sesion.id_sesion) ===
+            idSesionSolicitada
+        )
+          ? idSesionSolicitada
+          : sesiones[0]?.id_sesion || null;
+
       const [inscritos] =
         await pool.query(
           `
@@ -497,7 +675,48 @@ const obtenerActividadDocente =
               '%Y-%m-%d %H:%i:%s'
             ) AS fecha_inscripcion,
 
-            i.asistencia
+            COALESCE(
+              a.estado,
+              i.asistencia
+            ) AS asistencia,
+
+            COALESCE(
+              resumen.sesiones_programadas,
+              0
+            ) AS sesiones_programadas,
+
+            COALESCE(
+              resumen.sesiones_evaluadas,
+              0
+            ) AS sesiones_evaluadas,
+
+            COALESCE(
+              resumen.asistencias,
+              0
+            ) AS asistencias,
+
+            COALESCE(
+              resumen.no_asistencias,
+              0
+            ) AS no_asistencias,
+
+            ROUND(
+              CASE
+                WHEN COALESCE(
+                  resumen.sesiones_evaluadas,
+                  0
+                ) > 0
+                THEN (
+                  COALESCE(
+                    resumen.asistencias,
+                    0
+                  ) /
+                  resumen.sesiones_evaluadas
+                ) * 100
+                ELSE 0
+              END,
+              1
+            ) AS porcentaje_asistencia
 
           FROM inscripciones i
 
@@ -506,6 +725,45 @@ const obtenerActividadDocente =
               u.id_usuario =
               i.id_usuario
 
+          LEFT JOIN asistencias_sesion a
+            ON a.id_inscripcion = i.id_inscripcion
+            AND a.id_sesion = ?
+
+          LEFT JOIN (
+            SELECT
+              i2.id_inscripcion,
+              COUNT(
+                DISTINCT s2.id_sesion
+              ) AS sesiones_programadas,
+              COUNT(
+                DISTINCT CASE
+                  WHEN a2.estado IN ('Asistió', 'No asistió')
+                  THEN s2.id_sesion
+                END
+              ) AS sesiones_evaluadas,
+              COUNT(
+                DISTINCT CASE
+                  WHEN a2.estado = 'Asistió'
+                  THEN s2.id_sesion
+                END
+              ) AS asistencias,
+              COUNT(
+                DISTINCT CASE
+                  WHEN a2.estado = 'No asistió'
+                  THEN s2.id_sesion
+                END
+              ) AS no_asistencias
+            FROM inscripciones i2
+            LEFT JOIN sesiones_evento s2
+              ON s2.id_evento = i2.id_evento
+            LEFT JOIN asistencias_sesion a2
+              ON a2.id_sesion = s2.id_sesion
+              AND a2.id_inscripcion = i2.id_inscripcion
+            WHERE i2.id_evento = ?
+            GROUP BY i2.id_inscripcion
+          ) resumen
+            ON resumen.id_inscripcion = i.id_inscripcion
+
           WHERE
             i.id_evento = ?
 
@@ -513,6 +771,8 @@ const obtenerActividadDocente =
             u.nombre ASC
           `,
           [
+            idSesion,
+            idEvento,
             idEvento,
           ]
         );
@@ -521,6 +781,10 @@ const obtenerActividadDocente =
         ok: true,
 
         evento,
+
+        sesiones,
+
+        id_sesion: idSesion,
 
         inscritos,
       });
@@ -558,7 +822,21 @@ const guardarAsistencia =
 
       const {
         asistencias,
+        id_sesion: idSesionBody,
       } = req.body;
+
+      const asistenciasNormalizadas = Array.isArray(asistencias)
+        ? asistencias.map((registro) => ({
+            ...registro,
+            asistencia: normalizarAsistencia(
+              registro.asistencia
+            ),
+          }))
+        : asistencias;
+
+      const idSesion = idSesionBody
+        ? Number(idSesionBody)
+        : null;
 
       if (
         !Number.isInteger(
@@ -576,7 +854,7 @@ const guardarAsistencia =
 
       if (
         !Array.isArray(
-          asistencias
+        asistenciasNormalizadas
         ) ||
         asistencias.length === 0
       ) {
@@ -588,6 +866,16 @@ const guardarAsistencia =
         });
       }
 
+      if (
+        idSesionBody &&
+        (!Number.isInteger(idSesion) || idSesion <= 0)
+      ) {
+        return res.status(400).json({
+          ok: false,
+          mensaje: "La sesión seleccionada no es válida.",
+        });
+      }
+
       const estadosValidos = [
         "Pendiente",
         "Asistió",
@@ -596,7 +884,7 @@ const guardarAsistencia =
 
       for (
         const registro
-        of asistencias
+        of asistenciasNormalizadas
       ) {
         const idInscripcion =
           Number(
@@ -705,12 +993,34 @@ const guardarAsistencia =
         });
       }
 
+      if (idSesion) {
+        const [sesiones] = await conexion.query(
+          `
+            SELECT id_sesion
+            FROM sesiones_evento
+            WHERE id_sesion = ?
+              AND id_evento = ?
+            FOR UPDATE
+          `,
+          [idSesion, idEvento]
+        );
+
+        if (sesiones.length === 0) {
+          await conexion.rollback();
+
+          return res.status(400).json({
+            ok: false,
+            mensaje: "La sesión no pertenece al evento seleccionado.",
+          });
+        }
+      }
+
       // =================================================
       // EVITAR IDs REPETIDOS
       // =================================================
 
       const idsInscripciones =
-        asistencias.map(
+        asistenciasNormalizadas.map(
           (registro) =>
             Number(
               registro.id_inscripcion
@@ -791,8 +1101,25 @@ const guardarAsistencia =
 
       for (
         const registro
-        of asistencias
+        of asistenciasNormalizadas
       ) {
+        if (idSesion) {
+          await conexion.query(
+            `
+              INSERT INTO asistencias_sesion
+                (id_sesion, id_inscripcion, estado)
+              VALUES (?, ?, ?)
+              ON DUPLICATE KEY UPDATE
+                estado = VALUES(estado)
+            `,
+            [
+              idSesion,
+              registro.id_inscripcion,
+              registro.asistencia,
+            ]
+          );
+        }
+
         await conexion.query(
           `
           UPDATE inscripciones
@@ -806,7 +1133,9 @@ const guardarAsistencia =
             id_evento = ?
           `,
           [
-            registro.asistencia,
+            asistenciaLegacy(
+              registro.asistencia
+            ),
             registro.id_inscripcion,
             idEvento,
           ]

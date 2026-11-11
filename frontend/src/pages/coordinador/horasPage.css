@@ -866,6 +866,12 @@
   color: var(--ua-gold-700);
 }
 
+.hours-icon-button.download {
+  background: #e9f7ef;
+
+  color: #18864b;
+}
+
 .hours-icon-button.delete {
   background:
     var(--ua-danger-bg);

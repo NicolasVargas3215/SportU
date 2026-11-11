@@ -63,6 +63,22 @@
   color: #ffffff;
 }
 
+.sportu-login-brand-panel::before {
+  content: "";
+
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+
+  background-image: url("/loading-sports-background.png");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 105% auto;
+  opacity: 0.2;
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
 /* =========================================================
    LÍNEA DORADA
 ========================================================= */
@@ -85,6 +101,8 @@
       var(--ua-gold-500),
       var(--ua-gold-700)
     );
+
+  z-index: 4;
 }
 
 /* =========================================================
@@ -961,6 +979,44 @@ input:focus {
   border-top:
     1px solid
     var(--ua-border-light);
+}
+
+/* =========================================================
+   GOOGLE
+========================================================= */
+
+.login-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0 14px;
+  color: var(--ua-text-muted);
+  font-size: 10px;
+}
+
+.login-divider::before,
+.login-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--ua-border-light);
+}
+
+.login-google-button {
+  min-height: 40px;
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.login-google-unavailable {
+  padding: 11px 14px;
+  border: 1px dashed var(--ua-border-light);
+  border-radius: 8px;
+  color: var(--ua-text-muted);
+  font-size: 10px;
+  line-height: 1.4;
+  text-align: center;
 }
 
 .login-security-message > svg {

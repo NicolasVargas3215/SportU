@@ -392,6 +392,43 @@
   font-size: 11px;
 }
 
+.loans-date-filter {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #718096;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.loans-date-filter input {
+  height: 39px;
+  padding: 0 8px;
+  border: 1px solid #dce3ea;
+  border-radius: 8px;
+  background: #fff;
+  color: #526579;
+  font-family: inherit;
+  font-size: 10px;
+}
+
+.loans-clear-filter {
+  height: 39px;
+  padding: 0 10px;
+  border: 1px solid #dce3ea;
+  border-radius: 8px;
+  background: #f7f9fb;
+  color: #526579;
+  font-family: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.loans-clear-filter:hover {
+  border-color: #0d5d9b;
+  color: #0d5d9b;
+}
+
 /* =====================================================
    TABLA
 ===================================================== */
@@ -729,6 +766,16 @@
 
   .loans-filter {
     width: 100%;
+  }
+
+  .loans-date-filter {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .loans-date-filter input,
+  .loans-clear-filter {
+    flex: 1;
   }
 
   .loans-table td {

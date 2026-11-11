@@ -59,7 +59,7 @@ function Sidebar({
 
     {
       nombre:
-        "Horas deportivas",
+        "Horas deportivas y certificados",
       ruta:
         "/coordinador/horas",
       icono: <FaClock />,

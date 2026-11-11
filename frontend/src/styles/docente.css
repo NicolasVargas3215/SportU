@@ -906,7 +906,7 @@
 
   grid-template-columns:
     repeat(
-      4,
+      5,
       minmax(0, 1fr)
     );
 
@@ -1147,7 +1147,8 @@
 }
 
 .teacher-outline-success,
-.teacher-outline-warning {
+.teacher-outline-warning,
+.teacher-outline-download {
   min-height: 34px;
 
   padding:
@@ -1188,6 +1189,22 @@
 
   color:
     var(--ua-warning);
+}
+
+.teacher-outline-download {
+  border:
+    1px solid
+    #b8cfe5;
+
+  color:
+    var(--ua-blue-700);
+}
+
+.teacher-attendance-percentage {
+  color:
+    var(--ua-blue-800);
+
+  font-size: 10px;
 }
 
 /* =========================================================
@@ -1477,7 +1494,38 @@
   }
 
   .teacher-outline-success,
-  .teacher-outline-warning {
+  .teacher-outline-warning,
+  .teacher-outline-download {
+    width: 100%;
+  }
+}
+.attendance-session-selector {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.attendance-session-selector label {
+  font-weight: 700;
+}
+
+.attendance-session-selector select {
+  min-width: 18rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid #d9deea;
+  border-radius: 0.6rem;
+  background: #fff;
+}
+
+@media (max-width: 700px) {
+  .attendance-session-selector {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .attendance-session-selector select {
+    min-width: 0;
     width: 100%;
   }
 }

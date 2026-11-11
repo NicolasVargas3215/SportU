@@ -96,6 +96,16 @@ function PrestamosPage() {
     setFiltro,
   ] = useState("todos");
 
+  const [
+    fechaDesde,
+    setFechaDesde,
+  ] = useState("");
+
+  const [
+    fechaHasta,
+    setFechaHasta,
+  ] = useState("");
+
   // =====================================================
   // CARGAR INFORMACIÓN
   // =====================================================
@@ -486,9 +496,23 @@ function PrestamosPage() {
               .toLowerCase()
               .includes(texto);
 
+          const fechaPrestamo = String(
+            prestamo.fecha_prestamo || ""
+          ).slice(0, 10);
+
+          const coincideFechaDesde =
+            !fechaDesde ||
+            fechaPrestamo >= fechaDesde;
+
+          const coincideFechaHasta =
+            !fechaHasta ||
+            fechaPrestamo <= fechaHasta;
+
           return (
             coincideEstado &&
-            coincideBusqueda
+            coincideBusqueda &&
+            coincideFechaDesde &&
+            coincideFechaHasta
           );
         }
       );
@@ -496,6 +520,8 @@ function PrestamosPage() {
       prestamos,
       busqueda,
       filtro,
+      fechaDesde,
+      fechaHasta,
     ]);
 
   // =====================================================
@@ -986,6 +1012,42 @@ function PrestamosPage() {
               </option>
 
             </select>
+
+            <label className="loans-date-filter">
+              <span>Desde</span>
+              <input
+                type="date"
+                value={fechaDesde}
+                onChange={(event) =>
+                  setFechaDesde(event.target.value)
+                }
+              />
+            </label>
+
+            <label className="loans-date-filter">
+              <span>Hasta</span>
+              <input
+                type="date"
+                min={fechaDesde || undefined}
+                value={fechaHasta}
+                onChange={(event) =>
+                  setFechaHasta(event.target.value)
+                }
+              />
+            </label>
+
+            {(fechaDesde || fechaHasta) && (
+              <button
+                type="button"
+                className="loans-clear-filter"
+                onClick={() => {
+                  setFechaDesde("");
+                  setFechaHasta("");
+                }}
+              >
+                Limpiar
+              </button>
+            )}
 
           </div>
 

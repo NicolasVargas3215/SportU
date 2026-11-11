@@ -23,6 +23,34 @@ const DURACION_EVENTO_SQL = `
   )
 `;
 
+const HORAS_ASISTIDAS_SQL = `
+  COALESCE(
+    (
+      SELECT SUM(
+        CASE
+          WHEN a.estado = 'Asistió'
+          THEN TIMESTAMPDIFF(
+            MINUTE,
+            CONCAT(s.fecha_sesion, ' ', s.hora_inicio),
+            CONCAT(s.fecha_sesion, ' ', s.hora_fin)
+          ) / 60.0
+          ELSE 0
+        END
+      )
+      FROM sesiones_evento s
+      LEFT JOIN asistencias_sesion a
+        ON a.id_sesion = s.id_sesion
+        AND a.id_inscripcion = i.id_inscripcion
+      WHERE s.id_evento = e.id_evento
+    ),
+    CASE
+      WHEN i.asistencia = 'Asistió'
+      THEN ${DURACION_EVENTO_SQL}
+      ELSE 0
+    END
+  )
+`;
+
 // =====================================================
 // HELPERS
 // =====================================================
@@ -115,16 +143,7 @@ const obtenerDashboardCoordinador =
               SELECT
                 ROUND(
                   COALESCE(
-                    SUM(
-                      CASE
-                        WHEN
-                          i.asistencia =
-                          'Asistió'
-                        THEN
-                          ${DURACION_EVENTO_SQL}
-                        ELSE 0
-                      END
-                    ),
+                    SUM(${HORAS_ASISTIDAS_SQL}),
                     0
                   ),
                   2

@@ -9,6 +9,7 @@ import {
   FaCalendarAlt,
   FaCheckCircle,
   FaClock,
+  FaDownload,
   FaExclamationTriangle,
   FaMapMarkerAlt,
   FaSave,
@@ -105,6 +106,16 @@ function AsistenciaPage() {
   ] = useState([]);
 
   const [
+    sesiones,
+    setSesiones,
+  ] = useState([]);
+
+  const [
+    idSesion,
+    setIdSesion,
+  ] = useState("");
+
+  const [
     cargando,
     setCargando,
   ] = useState(true);
@@ -125,7 +136,7 @@ function AsistenciaPage() {
   ] = useState("");
 
   const cargarActividad =
-    async () => {
+    async (sesionParaCargar = "") => {
       try {
         setCargando(
           true
@@ -135,7 +146,8 @@ function AsistenciaPage() {
 
         const datos =
           await obtenerActividadDocente(
-            id
+            id,
+            sesionParaCargar
           );
 
         setEvento(
@@ -145,6 +157,19 @@ function AsistenciaPage() {
         setInscritos(
           datos.inscritos ||
             []
+        );
+
+        setSesiones(
+          datos.sesiones || []
+        );
+
+        setIdSesion(
+          String(
+            datos.id_sesion ||
+              sesionParaCargar ||
+              datos.sesiones?.[0]?.id_sesion ||
+              ""
+          )
         );
       } catch (err) {
         setError(
@@ -163,6 +188,12 @@ function AsistenciaPage() {
   }, [
     id,
   ]);
+
+  const cambiarSesion = async (event) => {
+    const nuevaSesion = event.target.value;
+    setIdSesion(nuevaSesion);
+    await cargarActividad(nuevaSesion);
+  };
 
   const resumen =
     useMemo(() => {
@@ -298,7 +329,8 @@ function AsistenciaPage() {
         const resultado =
           await guardarAsistencia(
             evento.id_evento,
-            asistencias
+            asistencias,
+            idSesion
           );
 
         setExito(
@@ -306,7 +338,7 @@ function AsistenciaPage() {
             "Asistencia guardada correctamente."
         );
 
-        await cargarActividad();
+        await cargarActividad(idSesion);
       } catch (err) {
         setError(
           err.message ||
@@ -318,6 +350,77 @@ function AsistenciaPage() {
         );
       }
     };
+
+  const descargarListadoInscritos = async () => {
+    if (!inscritos.length) {
+      return;
+    }
+
+    const XLSX = await import("xlsx");
+
+    const filas = inscritos.map((estudiante) => ({
+      Estudiante: estudiante.estudiante,
+      Correo: estudiante.correo,
+      "Sesiones programadas": Number(
+        estudiante.sesiones_programadas || 0
+      ),
+      "Sesiones evaluadas": Number(
+        estudiante.sesiones_evaluadas || 0
+      ),
+      Asistencias: Number(
+        estudiante.asistencias || 0
+      ),
+      "No asistencias": Number(
+        estudiante.no_asistencias || 0
+      ),
+      "Ponderado de asistencia": Number(
+        estudiante.porcentaje_asistencia || 0
+      ) / 100,
+    }));
+
+    const hoja = XLSX.utils.json_to_sheet(filas);
+    hoja["!cols"] = [
+      { wch: 28 },
+      { wch: 34 },
+      { wch: 20 },
+      { wch: 19 },
+      { wch: 14 },
+      { wch: 17 },
+      { wch: 25 },
+    ];
+    hoja["!autofilter"] = {
+      ref: `A1:G${filas.length + 1}`,
+    };
+    hoja["!freeze"] = {
+      xSplit: 0,
+      ySplit: 1,
+    };
+
+    for (let fila = 2; fila <= filas.length + 1; fila += 1) {
+      const celda = hoja[`G${fila}`];
+      if (celda) {
+        celda.z = "0.0%";
+      }
+    }
+
+    const libro = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(
+      libro,
+      hoja,
+      "Asistencia"
+    );
+    const nombreEvento = String(evento?.nombre || "evento")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")
+      .toLowerCase();
+
+    XLSX.writeFile(
+      libro,
+      `listado-inscritos-${nombreEvento || "evento"}.xlsx`
+    );
+  };
 
   if (cargando) {
     return (
@@ -449,7 +552,7 @@ function AsistenciaPage() {
 
           <div>
             <span>
-              Duración
+                Duración de la sesión
             </span>
 
             <strong>
@@ -461,6 +564,24 @@ function AsistenciaPage() {
           </div>
 
         </div>
+
+          <div>
+
+            <FaClock />
+
+            <div>
+              <span>
+                Total programado
+              </span>
+
+              <strong>
+                {
+                  evento.duracion_total_horas
+                } h
+              </strong>
+            </div>
+
+          </div>
 
         <div>
 
@@ -499,6 +620,30 @@ function AsistenciaPage() {
         </div>
 
       </section>
+
+      {sesiones.length > 0 && (
+        <section className="teacher-dashboard-card attendance-session-selector">
+          <label htmlFor="sesion_asistencia">
+            Sesión a registrar
+          </label>
+
+          <select
+            id="sesion_asistencia"
+            value={idSesion}
+            onChange={cambiarSesion}
+            disabled={cargando || guardando}
+          >
+            {sesiones.map((sesion) => (
+              <option
+                key={sesion.id_sesion}
+                value={sesion.id_sesion}
+              >
+                {sesion.fecha_sesion} — {sesion.hora_inicio} a {sesion.hora_fin}
+              </option>
+            ))}
+          </select>
+        </section>
+      )}
 
       <section className="teacher-summary-grid attendance-summary">
 
@@ -601,11 +746,22 @@ function AsistenciaPage() {
 
           </div>
 
-          {evento.puede_registrar_asistencia &&
-            inscritos.length >
-              0 && (
-              <div className="teacher-bulk-buttons">
+          <div className="teacher-bulk-buttons">
 
+            {inscritos.length > 0 && (
+              <button
+                type="button"
+                className="teacher-outline-download"
+                onClick={descargarListadoInscritos}
+              >
+                <FaDownload />
+                Descargar listado
+              </button>
+            )}
+
+            {evento.puede_registrar_asistencia &&
+              inscritos.length > 0 && (
+                <>
                 <button
                   type="button"
                   className="teacher-outline-success"
@@ -632,8 +788,11 @@ function AsistenciaPage() {
                   Dejar pendientes
                 </button>
 
-              </div>
-            )}
+                </>
+
+              )}
+
+          </div>
 
         </div>
 
@@ -673,6 +832,10 @@ function AsistenciaPage() {
 
                   <th>
                     Asistencia
+                  </th>
+
+                  <th>
+                    Ponderado
                   </th>
                 </tr>
               </thead>
@@ -771,6 +934,16 @@ function AsistenciaPage() {
                             No asistió
                           </option>
                         </select>
+                      </td>
+
+                      <td
+                        data-label="Ponderado"
+                      >
+                        <strong className="teacher-attendance-percentage">
+                          {Number(
+                            estudiante.porcentaje_asistencia || 0
+                          ).toFixed(1)}%
+                        </strong>
                       </td>
 
                     </tr>

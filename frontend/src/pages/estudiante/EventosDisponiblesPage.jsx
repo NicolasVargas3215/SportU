@@ -441,6 +441,16 @@ function EventosDisponiblesPage() {
 
                     </div>
 
+                    {Array.isArray(evento.dias_semana) &&
+                      evento.dias_semana.length > 0 && (
+                        <div>
+                          <FaCalendarAlt />
+                          <span>
+                            {evento.dias_semana.join(", ")} — {evento.hora_inicio} a {evento.hora_fin}
+                          </span>
+                        </div>
+                      )}
+
                     <div>
 
                       <FaUserTie />

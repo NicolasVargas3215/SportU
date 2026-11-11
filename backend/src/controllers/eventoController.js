@@ -47,6 +47,234 @@ const normalizarFechaHora = (valor) => {
 };
 
 // =====================================================
+// PROGRAMACIÓN SEMANAL
+// =====================================================
+
+const DIAS_SEMANA = [
+  "lunes",
+  "martes",
+  "miercoles",
+  "jueves",
+  "viernes",
+  "sabado",
+  "domingo",
+];
+
+const normalizarHora = (valor) => {
+  if (!valor) {
+    return null;
+  }
+
+  const hora = String(valor).slice(0, 8);
+
+  return /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/.test(hora)
+    ? hora.length === 5
+      ? `${hora}:00`
+      : hora
+    : null;
+};
+
+const obtenerProgramacion = (body) => {
+  const tieneCampos =
+    Object.prototype.hasOwnProperty.call(body, "dias_semana") ||
+    Object.prototype.hasOwnProperty.call(body, "hora_inicio") ||
+    Object.prototype.hasOwnProperty.call(body, "hora_fin") ||
+    Object.prototype.hasOwnProperty.call(body, "horarios");
+
+  const diasRecibidos = Array.isArray(body.dias_semana)
+    ? body.dias_semana
+    : Array.isArray(body.horarios)
+      ? body.horarios.map((horario) => horario.dia_semana)
+      : [];
+
+  const dias = [
+    ...new Set(
+      diasRecibidos
+        .map((dia) => String(dia).trim().toLowerCase())
+        .filter(Boolean)
+    ),
+  ];
+
+  const horaInicio = normalizarHora(
+    body.hora_inicio || body.horarios?.[0]?.hora_inicio
+  );
+
+  const horaFin = normalizarHora(
+    body.hora_fin || body.horarios?.[0]?.hora_fin
+  );
+
+  return {
+    tieneCampos,
+    dias,
+    horaInicio,
+    horaFin,
+  };
+};
+
+const validarProgramacion = (programacion) => {
+  if (!programacion.tieneCampos) {
+    return { valido: true };
+  }
+
+  if (programacion.dias.length === 0) {
+    return {
+      valido: false,
+      mensaje: "Debes seleccionar al menos un día programado",
+    };
+  }
+
+  const diaInvalido = programacion.dias.find(
+    (dia) => !DIAS_SEMANA.includes(dia)
+  );
+
+  if (diaInvalido) {
+    return {
+      valido: false,
+      mensaje: `Día programado no válido: ${diaInvalido}`,
+    };
+  }
+
+  if (!programacion.horaInicio || !programacion.horaFin) {
+    return {
+      valido: false,
+      mensaje: "La hora de inicio y la hora de finalización son obligatorias",
+    };
+  }
+
+  if (programacion.horaInicio >= programacion.horaFin) {
+    return {
+      valido: false,
+      mensaje: "La hora de finalización debe ser posterior a la hora de inicio",
+    };
+  }
+
+  return { valido: true };
+};
+
+const fechaDesdeTexto = (valor) => {
+  const fecha = String(valor).slice(0, 10).split("-").map(Number);
+
+  return new Date(Date.UTC(fecha[0], fecha[1] - 1, fecha[2]));
+};
+
+const fechaTexto = (fecha) =>
+  fecha.toISOString().slice(0, 10);
+
+const generarFechasSesiones = (
+  fechaInicio,
+  fechaFin,
+  dias
+) => {
+  const inicio = fechaDesdeTexto(fechaInicio);
+  const fin = fechaDesdeTexto(fechaFin);
+  const diasNumericos = new Set(
+    dias.map((dia) => DIAS_SEMANA.indexOf(dia) + 1)
+  );
+  const fechas = [];
+
+  for (
+    const fecha = new Date(inicio);
+    fecha <= fin;
+    fecha.setUTCDate(fecha.getUTCDate() + 1)
+  ) {
+    const diaSemana = fecha.getUTCDay() === 0
+      ? 7
+      : fecha.getUTCDay();
+
+    if (diasNumericos.has(diaSemana)) {
+      fechas.push(fechaTexto(fecha));
+    }
+  }
+
+  return fechas;
+};
+
+const guardarProgramacionEvento = async (
+  conexion,
+  idEvento,
+  fechaInicio,
+  fechaFin,
+  programacion,
+  reemplazar = false
+) => {
+  if (!programacion.tieneCampos) {
+    return;
+  }
+
+  if (reemplazar) {
+    const [asistencias] = await conexion.query(
+      `
+        SELECT COUNT(*) AS total
+        FROM asistencias_sesion a
+        INNER JOIN sesiones_evento s
+          ON s.id_sesion = a.id_sesion
+        WHERE s.id_evento = ?
+      `,
+      [idEvento]
+    );
+
+    if (Number(asistencias[0].total) > 0) {
+      const error = new Error(
+        "No se puede modificar la programación porque el evento ya tiene asistencias registradas"
+      );
+      error.statusCode = 409;
+      throw error;
+    }
+
+    await conexion.query(
+      "DELETE FROM sesiones_evento WHERE id_evento = ?",
+      [idEvento]
+    );
+
+    await conexion.query(
+      "DELETE FROM evento_dias_semana WHERE id_evento = ?",
+      [idEvento]
+    );
+  }
+
+  for (const dia of programacion.dias) {
+    await conexion.query(
+      `
+        INSERT INTO evento_dias_semana
+          (id_evento, dia_semana)
+        VALUES (?, ?)
+      `,
+      [idEvento, dia]
+    );
+  }
+
+  const fechas = generarFechasSesiones(
+    fechaInicio,
+    fechaFin,
+    programacion.dias
+  );
+
+  if (fechas.length === 0) {
+    const error = new Error(
+      "La fecha seleccionada no contiene ninguno de los días programados"
+    );
+    error.statusCode = 400;
+    throw error;
+  }
+
+  for (const fecha of fechas) {
+    await conexion.query(
+      `
+        INSERT INTO sesiones_evento
+          (id_evento, fecha_sesion, hora_inicio, hora_fin)
+        VALUES (?, ?, ?, ?)
+      `,
+      [
+        idEvento,
+        fecha,
+        programacion.horaInicio,
+        programacion.horaFin,
+      ]
+    );
+  }
+};
+
+// =====================================================
 // CALCULAR DURACIÓN
 // =====================================================
 
@@ -124,6 +352,34 @@ const calcularDuracionHoras = (
   );
 };
 
+const calcularDuracionHorario = (
+  horaInicio,
+  horaFin
+) => {
+  if (!horaInicio || !horaFin) {
+    return null;
+  }
+
+  const [inicioHoras, inicioMinutos] = horaInicio
+    .slice(0, 5)
+    .split(":")
+    .map(Number);
+
+  const [finHoras, finMinutos] = horaFin
+    .slice(0, 5)
+    .split(":")
+    .map(Number);
+
+  const inicio = inicioHoras * 60 + inicioMinutos;
+  const fin = finHoras * 60 + finMinutos;
+
+  if (fin <= inicio) {
+    return null;
+  }
+
+  return Number(((fin - inicio) / 60).toFixed(2));
+};
+
 // =====================================================
 // OBTENER FECHAS
 // =====================================================
@@ -140,6 +396,29 @@ const obtenerFechasEvento = (
     normalizarFechaHora(
       body.fecha_fin
     );
+
+  // Cuando el formulario envía fechas separadas del horario semanal,
+  // combinar la fecha con la hora para conservar fecha_inicio/fecha_fin
+  // como valores DATETIME compatibles con la aplicación existente.
+  if (
+    fechaInicio &&
+    String(body.fecha_inicio).length === 10 &&
+    body.hora_inicio
+  ) {
+    fechaInicio = normalizarFechaHora(
+      `${String(body.fecha_inicio).slice(0, 10)} ${body.hora_inicio}`
+    );
+  }
+
+  if (
+    fechaFin &&
+    String(body.fecha_fin).length === 10 &&
+    body.hora_fin
+  ) {
+    fechaFin = normalizarFechaHora(
+      `${String(body.fecha_fin).slice(0, 10)} ${body.hora_fin}`
+    );
+  }
 
   // Compatibilidad con estructura anterior
   if (
@@ -358,10 +637,31 @@ const obtenerEventos = async (
 
             e.fecha,
             e.hora,
+            e.hora_inicio,
+            e.hora_fin,
             e.lugar,
             e.duracion_horas,
             e.cupo_maximo,
             e.estado,
+
+            (
+              SELECT GROUP_CONCAT(
+                ed.dia_semana
+                ORDER BY FIELD(
+                  ed.dia_semana,
+                  'lunes',
+                  'martes',
+                  'miercoles',
+                  'jueves',
+                  'viernes',
+                  'sabado',
+                  'domingo'
+                )
+                SEPARATOR ','
+              )
+              FROM evento_dias_semana ed
+              WHERE ed.id_evento = e.id_evento
+            ) AS dias_semana,
 
             (
               SELECT COUNT(*)
@@ -433,6 +733,11 @@ const obtenerEventos = async (
               evento.asistencias_registradas
             ) || 0,
 
+          dias_semana:
+            evento.dias_semana
+              ? evento.dias_semana.split(",")
+              : [],
+
           inscripciones_pendientes:
             Number(
               evento.inscripciones_pendientes
@@ -499,10 +804,31 @@ const obtenerEventoPorId =
 
               e.fecha,
               e.hora,
+              e.hora_inicio,
+              e.hora_fin,
               e.lugar,
               e.duracion_horas,
               e.cupo_maximo,
               e.estado,
+
+              (
+                SELECT GROUP_CONCAT(
+                  ed.dia_semana
+                  ORDER BY FIELD(
+                    ed.dia_semana,
+                    'lunes',
+                    'martes',
+                    'miercoles',
+                    'jueves',
+                    'viernes',
+                    'sabado',
+                    'domingo'
+                  )
+                  SEPARATOR ','
+                )
+                FROM evento_dias_semana ed
+                WHERE ed.id_evento = e.id_evento
+              ) AS dias_semana,
 
               (
                 SELECT COUNT(*)
@@ -574,6 +900,11 @@ const obtenerEventoPorId =
             eventos[0]
               .asistencias_registradas
           ) || 0,
+
+        dias_semana:
+          eventos[0].dias_semana
+            ? eventos[0].dias_semana.split(",")
+            : [],
       };
 
       return res.json({
@@ -697,6 +1028,11 @@ const crearEvento = async (
         req.body
       );
 
+    const programacion =
+      obtenerProgramacion(
+        req.body
+      );
+
     // =================================================
     // VALIDACIONES
     // =================================================
@@ -801,13 +1137,14 @@ const crearEvento = async (
         });
     }
 
-    const duracionHoras =
-      calcularDuracionHoras(
-        fechaInicio,
-        fechaFin
-      );
+    let duracionHoras = programacion.tieneCampos
+      ? null
+      : calcularDuracionHoras(
+          fechaInicio,
+          fechaFin
+        );
 
-    if (!duracionHoras) {
+    if (!duracionHoras && !programacion.tieneCampos) {
       return res
         .status(400)
         .json({
@@ -820,7 +1157,8 @@ const crearEvento = async (
 
     if (
       duracionHoras >
-      99.99
+      99.99 &&
+      !programacion.tieneCampos
     ) {
       return res
         .status(400)
@@ -829,6 +1167,51 @@ const crearEvento = async (
 
           mensaje:
             "La duración del evento no puede superar 99.99 horas",
+        });
+    }
+
+    const validacionProgramacion =
+      validarProgramacion(
+        programacion
+      );
+
+    if (
+      !validacionProgramacion.valido
+    ) {
+      return res
+        .status(400)
+        .json({
+          ok: false,
+
+          mensaje:
+            validacionProgramacion.mensaje,
+        });
+    }
+
+    if (programacion.tieneCampos) {
+      duracionHoras = calcularDuracionHorario(
+        programacion.horaInicio,
+        programacion.horaFin
+      );
+    }
+
+    if (!duracionHoras) {
+      return res
+        .status(400)
+        .json({
+          ok: false,
+          mensaje:
+            "La hora de finalización debe ser posterior a la hora de inicio",
+        });
+    }
+
+    if (duracionHoras > 99.99) {
+      return res
+        .status(400)
+        .json({
+          ok: false,
+          mensaje:
+            "La duración de cada sesión no puede superar 99.99 horas",
         });
     }
 
@@ -902,6 +1285,8 @@ const crearEvento = async (
 
             fecha,
             hora,
+            hora_inicio,
+            hora_fin,
 
             lugar,
             duracion_horas,
@@ -919,6 +1304,9 @@ const crearEvento = async (
 
             DATE(?),
             TIME(?),
+
+            ?,
+            ?,
 
             ?,
             ?,
@@ -940,6 +1328,9 @@ const crearEvento = async (
           fechaInicio,
           fechaInicio,
 
+          programacion.horaInicio,
+          programacion.horaFin,
+
           String(
             lugar
           ).trim(),
@@ -949,6 +1340,14 @@ const crearEvento = async (
           estado,
         ]
       );
+
+    await guardarProgramacionEvento(
+      conexion,
+      resultado.insertId,
+      fechaInicio,
+      fechaFin,
+      programacion
+    );
 
     await conexion.commit();
 
@@ -984,7 +1383,7 @@ const crearEvento = async (
     );
 
     return res
-      .status(500)
+      .status(error.statusCode || 500)
       .json({
         ok: false,
 
@@ -1028,6 +1427,11 @@ const actualizarEvento =
         fechaFin,
       } =
         obtenerFechasEvento(
+          req.body
+        );
+
+      const programacion =
+        obtenerProgramacion(
           req.body
         );
 
@@ -1085,13 +1489,14 @@ const actualizarEvento =
           });
       }
 
-      const duracionHoras =
-        calcularDuracionHoras(
-          fechaInicio,
-          fechaFin
-        );
+      let duracionHoras = programacion.tieneCampos
+        ? null
+        : calcularDuracionHoras(
+            fechaInicio,
+            fechaFin
+          );
 
-      if (!duracionHoras) {
+      if (!duracionHoras && !programacion.tieneCampos) {
         return res
           .status(400)
           .json({
@@ -1104,7 +1509,8 @@ const actualizarEvento =
 
       if (
         duracionHoras >
-        99.99
+        99.99 &&
+        !programacion.tieneCampos
       ) {
         return res
           .status(400)
@@ -1114,6 +1520,47 @@ const actualizarEvento =
             mensaje:
               "La duración del evento no puede superar 99.99 horas",
           });
+      }
+
+      const validacionProgramacion =
+        validarProgramacion(
+          programacion
+        );
+
+      if (
+        !validacionProgramacion.valido
+      ) {
+        return res
+          .status(400)
+          .json({
+            ok: false,
+
+            mensaje:
+              validacionProgramacion.mensaje,
+          });
+      }
+
+      if (programacion.tieneCampos) {
+        duracionHoras = calcularDuracionHorario(
+          programacion.horaInicio,
+          programacion.horaFin
+        );
+      }
+
+      if (!duracionHoras) {
+        return res.status(400).json({
+          ok: false,
+          mensaje:
+            "La hora de finalización debe ser posterior a la hora de inicio",
+        });
+      }
+
+      if (duracionHoras > 99.99) {
+        return res.status(400).json({
+          ok: false,
+          mensaje:
+            "La duración de cada sesión no puede superar 99.99 horas",
+        });
       }
 
       await conexion.beginTransaction();
@@ -1262,6 +1709,8 @@ const actualizarEvento =
 
             fecha = DATE(?),
             hora = TIME(?),
+            hora_inicio = COALESCE(?, hora_inicio),
+            hora_fin = COALESCE(?, hora_fin),
 
             lugar = ?,
             duracion_horas = ?,
@@ -1285,6 +1734,9 @@ const actualizarEvento =
           fechaInicio,
           fechaInicio,
 
+          programacion.horaInicio,
+          programacion.horaFin,
+
           String(
             lugar
           ).trim(),
@@ -1295,6 +1747,15 @@ const actualizarEvento =
 
           id,
         ]
+      );
+
+      await guardarProgramacionEvento(
+        conexion,
+        id,
+        fechaInicio,
+        fechaFin,
+        programacion,
+        programacion.tieneCampos
       );
 
       await conexion.commit();
@@ -1326,7 +1787,7 @@ const actualizarEvento =
       );
 
       return res
-        .status(500)
+        .status(error.statusCode || 500)
         .json({
           ok: false,
 

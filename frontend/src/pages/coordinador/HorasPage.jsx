@@ -9,6 +9,7 @@ import {
   FaCertificate,
   FaCheckCircle,
   FaClock,
+  FaDownload,
   FaEye,
   FaExclamationTriangle,
   FaPrint,
@@ -144,13 +145,17 @@ const formatearFechaHora =
 
 function CertificadoContenido({
   certificado,
+  id,
 }) {
   if (!certificado) {
     return null;
   }
 
   return (
-    <div className="hours-certificate-document">
+    <div
+      id={id}
+      className="hours-certificate-document"
+    >
 
       <div className="hours-certificate-top">
 
@@ -217,7 +222,7 @@ function CertificadoContenido({
         <div className="hours-certificate-date">
           Generado el{" "}
           <strong>
-            {formatearFecha(
+            {formatearFechaHora(
               certificado.fecha_generacion
             )}
           </strong>
@@ -315,6 +320,11 @@ function HorasPage() {
   const [
     procesando,
     setProcesando,
+  ] = useState(false);
+
+  const [
+    descargandoPdf,
+    setDescargandoPdf,
   ] = useState(false);
 
   const [
@@ -685,6 +695,103 @@ function HorasPage() {
         },
         120
       );
+    };
+
+  const descargarCertificadoPdf =
+    async (certificado) => {
+      const elemento =
+        document.getElementById(
+          "certificate-pdf-source"
+        );
+
+      if (!elemento) {
+        setError(
+          "No fue posible preparar el certificado para descargarlo."
+        );
+        return;
+      }
+
+      try {
+        setDescargandoPdf(true);
+        setError("");
+
+        const [{ jsPDF }, html2canvasModule] =
+          await Promise.all([
+            import("jspdf"),
+            import("html2canvas"),
+          ]);
+
+        const html2canvas =
+          html2canvasModule.default;
+
+        const canvas = await html2canvas(
+          elemento,
+          {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: "#ffffff",
+            logging: false,
+          }
+        );
+
+        const pdf = new jsPDF({
+          orientation: "landscape",
+          unit: "mm",
+          format: "a4",
+        });
+
+        const margen = 10;
+        const anchoPagina =
+          pdf.internal.pageSize.getWidth();
+        const altoPagina =
+          pdf.internal.pageSize.getHeight();
+        const anchoDisponible =
+          anchoPagina - margen * 2;
+        const altoDisponible =
+          altoPagina - margen * 2;
+        const proporcion =
+          canvas.width / canvas.height;
+        const ancho = Math.min(
+          anchoDisponible,
+          altoDisponible * proporcion
+        );
+        const alto = ancho / proporcion;
+        const x =
+          (anchoPagina - ancho) / 2;
+        const y =
+          (altoPagina - alto) / 2;
+
+        pdf.addImage(
+          canvas.toDataURL("image/png"),
+          "PNG",
+          x,
+          y,
+          ancho,
+          alto,
+          undefined,
+          "FAST"
+        );
+
+        const nombre = String(
+          certificado.estudiante ||
+            "estudiante"
+        )
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/[^a-zA-Z0-9]+/g, "-")
+          .replace(/^-|-$/g, "")
+          .toLowerCase();
+
+        pdf.save(
+          `certificado-horas-${nombre || "estudiante"}.pdf`
+        );
+      } catch (err) {
+        setError(
+          "No fue posible descargar el certificado en PDF."
+        );
+      } finally {
+        setDescargandoPdf(false);
+      }
     };
 
   // =====================================================
@@ -1391,6 +1498,23 @@ function HorasPage() {
 
                             <button
                               type="button"
+                              className="hours-icon-button download"
+                              title="Descargar certificado en PDF"
+                              onClick={() => {
+                                setCertificadoVista(
+                                  certificado
+                                );
+                                window.setTimeout(
+                                  () => descargarCertificadoPdf(certificado),
+                                  120
+                                );
+                              }}
+                            >
+                              <FaDownload />
+                            </button>
+
+                            <button
+                              type="button"
                               className="hours-icon-button delete"
                               title="Eliminar certificado"
                               disabled={
@@ -1810,6 +1934,7 @@ function HorasPage() {
             </div>
 
             <CertificadoContenido
+              id="certificate-pdf-source"
               certificado={
                 certificadoVista
               }
@@ -1832,6 +1957,23 @@ function HorasPage() {
               <button
                 type="button"
                 className="hours-certificate-button"
+                disabled={descargandoPdf}
+                onClick={() =>
+                  descargarCertificadoPdf(
+                    certificadoVista
+                  )
+                }
+              >
+                <FaDownload />
+
+                {descargandoPdf
+                  ? "Preparando PDF..."
+                  : "Descargar PDF"}
+              </button>
+
+              <button
+                type="button"
+                className="hours-certificate-button print"
                 onClick={() =>
                   imprimirCertificado(
                     certificadoVista

@@ -61,6 +61,16 @@ const ESTADOS = [
   },
 ];
 
+const DIAS_SEMANA = [
+  { value: "lunes", label: "Lunes" },
+  { value: "martes", label: "Martes" },
+  { value: "miercoles", label: "Miércoles" },
+  { value: "jueves", label: "Jueves" },
+  { value: "viernes", label: "Viernes" },
+  { value: "sabado", label: "Sábado" },
+  { value: "domingo", label: "Domingo" },
+];
+
 function EventoFormPage() {
   const navigate =
     useNavigate();
@@ -85,6 +95,9 @@ function EventoFormPage() {
     id_docente: "",
     fecha_inicio: "",
     fecha_fin: "",
+    hora_inicio: "",
+    hora_fin: "",
+    dias_semana: [],
     lugar: "",
     cupo_maximo: "",
     estado: "borrador",
@@ -242,12 +255,32 @@ function EventoFormPage() {
           ),
 
         fecha_inicio:
-          evento.fecha_inicio ||
-          "",
+          evento.fecha_inicio
+            ? String(evento.fecha_inicio).slice(0, 10)
+            : "",
 
         fecha_fin:
-          evento.fecha_fin ||
-          "",
+          evento.fecha_fin
+            ? String(evento.fecha_fin).slice(0, 10)
+            : "",
+
+        hora_inicio:
+          evento.hora_inicio
+            ? String(evento.hora_inicio).slice(0, 5)
+            : "",
+
+        hora_fin:
+          evento.hora_fin
+            ? String(evento.hora_fin).slice(0, 5)
+            : "",
+
+        dias_semana:
+          Array.isArray(evento.dias_semana)
+            ? evento.dias_semana
+            : typeof evento.dias_semana === "string" &&
+                evento.dias_semana.length > 0
+              ? evento.dias_semana.split(",")
+              : [],
 
         lugar:
           evento.lugar || "",
@@ -317,32 +350,45 @@ function EventoFormPage() {
     setError("");
   };
 
+  const alternarDia = (dia) => {
+    setFormulario((anterior) => ({
+      ...anterior,
+      dias_semana: anterior.dias_semana.includes(dia)
+        ? anterior.dias_semana.filter((item) => item !== dia)
+        : [...anterior.dias_semana, dia],
+    }));
+    setError("");
+  };
+
   // =====================================================
   // DURACIÓN AUTOMÁTICA
   // =====================================================
 
   const duracionHoras =
     useMemo(() => {
-      if (
-        !formulario.fecha_inicio ||
-        !formulario.fecha_fin
-      ) {
+      if (formulario.hora_inicio && formulario.hora_fin) {
+        const [horaInicio, minutoInicio] = formulario.hora_inicio
+          .split(":")
+          .map(Number);
+        const [horaFin, minutoFin] = formulario.hora_fin
+          .split(":")
+          .map(Number);
+
+        const diferenciaMinutos =
+          horaFin * 60 + minutoFin - (horaInicio * 60 + minutoInicio);
+
+        return diferenciaMinutos > 0
+          ? Number((diferenciaMinutos / 60).toFixed(2))
+          : 0;
+      }
+
+      if (!formulario.fecha_inicio || !formulario.fecha_fin) {
         return 0;
       }
 
-      const inicio =
-        new Date(
-          formulario.fecha_inicio
-        );
-
-      const fin =
-        new Date(
-          formulario.fecha_fin
-        );
-
-      const diferencia =
-        fin.getTime() -
-        inicio.getTime();
+      const inicio = new Date(formulario.fecha_inicio);
+      const fin = new Date(formulario.fecha_fin);
+      const diferencia = fin.getTime() - inicio.getTime();
 
       if (
         Number.isNaN(
@@ -362,6 +408,8 @@ function EventoFormPage() {
     }, [
       formulario.fecha_inicio,
       formulario.fecha_fin,
+      formulario.hora_inicio,
+      formulario.hora_fin,
     ]);
 
   // =====================================================
@@ -445,26 +493,33 @@ function EventoFormPage() {
       if (
         !formulario.fecha_inicio
       ) {
-        return "Selecciona la fecha y hora de inicio.";
+        return "Selecciona la fecha de inicio.";
       }
 
       if (
         !formulario.fecha_fin
       ) {
-        return "Selecciona la fecha y hora de finalización.";
+        return "Selecciona la fecha de finalización.";
       }
 
-      if (
-        duracionHoras <= 0
-      ) {
-        return "La fecha final debe ser posterior a la fecha de inicio.";
+      if (formulario.dias_semana.length === 0) {
+        return "Selecciona al menos un día programado.";
       }
 
-      if (
-        duracionHoras >
-        99.99
-      ) {
-        return "La duración del evento no puede superar 99.99 horas.";
+      if (!formulario.hora_inicio || !formulario.hora_fin) {
+        return "Selecciona la hora de inicio y la hora de finalización.";
+      }
+
+      if (formulario.hora_inicio >= formulario.hora_fin) {
+        return "La hora de finalización debe ser posterior a la hora de inicio.";
+      }
+
+      if (duracionHoras <= 0) {
+        return "La hora de finalización debe ser posterior a la hora de inicio.";
+      }
+
+      if (duracionHoras > 99.99) {
+        return "La duración de cada sesión no puede superar 99.99 horas.";
       }
 
       if (
@@ -539,6 +594,15 @@ function EventoFormPage() {
 
           fecha_fin:
             formulario.fecha_fin,
+
+          hora_inicio:
+            formulario.hora_inicio,
+
+          hora_fin:
+            formulario.hora_fin,
+
+          dias_semana:
+            formulario.dias_semana,
 
           lugar:
             formulario.lugar.trim(),
@@ -943,14 +1007,14 @@ function EventoFormPage() {
                 <div className="event-field">
 
                   <label htmlFor="fecha_inicio">
-                    Fecha y hora de inicio
+                    Fecha de inicio
                     <span>*</span>
                   </label>
 
                   <input
                     id="fecha_inicio"
                     name="fecha_inicio"
-                    type="datetime-local"
+                    type="date"
                     value={
                       formulario.fecha_inicio
                     }
@@ -966,14 +1030,14 @@ function EventoFormPage() {
                 <div className="event-field">
 
                   <label htmlFor="fecha_fin">
-                    Fecha y hora de finalización
+                    Fecha de finalización
                     <span>*</span>
                   </label>
 
                   <input
                     id="fecha_fin"
                     name="fecha_fin"
-                    type="datetime-local"
+                    type="date"
                     min={
                       formulario.fecha_inicio ||
                       undefined
@@ -988,6 +1052,68 @@ function EventoFormPage() {
 
                 </div>
 
+              </div>
+
+              <div className="event-weekly-schedule">
+                <div className="event-field full">
+                  <label>
+                    Días programados
+                    <span>*</span>
+                  </label>
+
+                  <div className="event-weekdays-grid">
+                    {DIAS_SEMANA.map((dia) => (
+                      <label
+                        key={dia.value}
+                        className={`event-weekday-option ${
+                          formulario.dias_semana.includes(dia.value)
+                            ? "selected"
+                            : ""
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={formulario.dias_semana.includes(
+                            dia.value
+                          )}
+                          onChange={() => alternarDia(dia.value)}
+                        />
+                        <span>{dia.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="event-schedule-grid event-schedule-hours">
+                  <div className="event-field">
+                    <label htmlFor="hora_inicio">
+                      Hora de inicio
+                      <span>*</span>
+                    </label>
+                    <input
+                      id="hora_inicio"
+                      name="hora_inicio"
+                      type="time"
+                      value={formulario.hora_inicio}
+                      onChange={manejarCambio}
+                    />
+                  </div>
+
+                  <div className="event-field">
+                    <label htmlFor="hora_fin">
+                      Hora de finalización
+                      <span>*</span>
+                    </label>
+                    <input
+                      id="hora_fin"
+                      name="hora_fin"
+                      type="time"
+                      min={formulario.hora_inicio || undefined}
+                      value={formulario.hora_fin}
+                      onChange={manejarCambio}
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* DURACIÓN */}
@@ -1146,6 +1272,24 @@ function EventoFormPage() {
                     "-"}
                 </strong>
 
+              </div>
+
+              <div className="event-summary-row">
+                <span>Programación</span>
+                <strong>
+                  {formulario.dias_semana.length > 0
+                    ? `${formulario.dias_semana
+                        .map(
+                          (dia) =>
+                            DIAS_SEMANA.find(
+                              (item) => item.value === dia
+                            )?.label || dia
+                        )
+                        .join(", ")} ${formulario.hora_inicio || ""}-${
+                        formulario.hora_fin || ""
+                      }`
+                    : "-"}
+                </strong>
               </div>
 
               <div className="event-summary-row">

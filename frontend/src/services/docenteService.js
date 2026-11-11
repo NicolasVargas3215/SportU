@@ -87,11 +87,16 @@ export const obtenerActividadesDocente =
 
 export const obtenerActividadDocente =
   async (
-    idEvento
+    idEvento,
+    idSesion
   ) => {
+    const query = idSesion
+      ? `?id_sesion=${encodeURIComponent(idSesion)}`
+      : "";
+
     const respuesta =
       await fetch(
-        `${API_URL}/actividades/${idEvento}`,
+        `${API_URL}/actividades/${idEvento}${query}`,
         {
           headers:
             headersAuth(),
@@ -111,7 +116,8 @@ export const obtenerActividadDocente =
 export const guardarAsistencia =
   async (
     idEvento,
-    asistencias
+    asistencias,
+    idSesion
   ) => {
     const respuesta =
       await fetch(
@@ -130,6 +136,7 @@ export const guardarAsistencia =
           body:
             JSON.stringify({
               asistencias,
+              id_sesion: idSesion,
             }),
         }
       );

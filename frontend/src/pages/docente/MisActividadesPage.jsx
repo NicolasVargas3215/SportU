@@ -377,13 +377,35 @@ function MisActividadesPage() {
 
                   </div>
 
+                  {Array.isArray(actividad.dias_semana) &&
+                    actividad.dias_semana.length > 0 && (
+                      <div>
+                        <FaCalendarAlt />
+                        <span>
+                          {actividad.dias_semana.join(", ")} — {actividad.hora_inicio} a {actividad.hora_fin}
+                        </span>
+                      </div>
+                    )}
+
                   <div>
 
                     <FaClock />
 
                     <span>
-                      {formatearHoras(
+                      Sesión: {formatearHoras(
                         actividad.duracion_horas
+                      )}
+                    </span>
+
+                  </div>
+
+                  <div>
+
+                    <FaClock />
+
+                    <span>
+                      Total: {formatearHoras(
+                        actividad.duracion_total_horas
                       )}
                     </span>
 

@@ -46,6 +46,23 @@ const obtenerEventosDisponibles = async (
               '%H:%i'
             ) AS hora,
 
+            e.hora_inicio,
+            e.hora_fin,
+
+            (
+              SELECT GROUP_CONCAT(
+                ed.dia_semana
+                ORDER BY FIELD(
+                  ed.dia_semana,
+                  'lunes', 'martes', 'miercoles', 'jueves',
+                  'viernes', 'sabado', 'domingo'
+                )
+                SEPARATOR ','
+              )
+              FROM evento_dias_semana ed
+              WHERE ed.id_evento = e.id_evento
+            ) AS dias_semana,
+
             e.lugar,
             e.duracion_horas,
             e.cupo_maximo,
@@ -121,6 +138,11 @@ const obtenerEventosDisponibles = async (
               Boolean(
                 evento.inscrito
               ),
+
+            dias_semana:
+              evento.dias_semana
+                ? String(evento.dias_semana).split(",")
+                : [],
           };
         }
       );

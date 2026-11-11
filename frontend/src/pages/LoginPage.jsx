@@ -1,4 +1,6 @@
 import {
+  useEffect,
+  useRef,
   useState,
 } from "react";
 
@@ -18,6 +20,7 @@ import {
 } from "react-icons/fa";
 
 import {
+  iniciarSesionConGoogle,
   iniciarSesion,
 } from "../services/authService";
 
@@ -61,6 +64,64 @@ function LoginPage() {
     setLogoError,
   ] = useState(false);
 
+  const googleButtonRef = useRef(null);
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  const googleConfigurado = Boolean(
+    googleClientId && !googleClientId.startsWith("tu-client-id")
+  );
+
+  const guardarSesionYContinuar = (respuesta) => {
+    localStorage.setItem("token", respuesta.token);
+    localStorage.setItem("usuario", JSON.stringify(respuesta.usuario));
+
+    switch (respuesta.usuario.rol) {
+      case "estudiante":
+        navigate("/estudiante", { replace: true });
+        break;
+      case "docente":
+        navigate("/docente", { replace: true });
+        break;
+      case "coordinador":
+        navigate("/coordinador", { replace: true });
+        break;
+      default:
+        setMensaje("El usuario no tiene un rol válido dentro de SportU.");
+    }
+  };
+
+  useEffect(() => {
+    if (!googleConfigurado || !googleButtonRef.current || !window.google?.accounts?.id) {
+      return undefined;
+    }
+
+    googleButtonRef.current.innerHTML = "";
+    window.google.accounts.id.initialize({
+      client_id: googleClientId,
+      callback: async (respuestaGoogle) => {
+        try {
+          setMensaje("");
+          setCargando(true);
+          const respuesta = await iniciarSesionConGoogle(respuestaGoogle.credential);
+          guardarSesionYContinuar(respuesta);
+        } catch (error) {
+          setMensaje(error.message || "No fue posible iniciar sesión con Google.");
+        } finally {
+          setCargando(false);
+        }
+      },
+    });
+    window.google.accounts.id.renderButton(googleButtonRef.current, {
+      theme: "outline",
+      size: "large",
+      text: "signin_with",
+      shape: "rectangular",
+      width: 398,
+      logo_alignment: "left",
+    });
+
+    return undefined;
+  }, [googleClientId, googleConfigurado]);
+
   // =====================================================
   // LOGIN
   // =====================================================
@@ -96,61 +157,7 @@ function LoginPage() {
             contrasena
           );
 
-        // =================================================
-        // GUARDAR SESIÓN
-        // =================================================
-
-        localStorage.setItem(
-          "token",
-          respuesta.token
-        );
-
-        localStorage.setItem(
-          "usuario",
-          JSON.stringify(
-            respuesta.usuario
-          )
-        );
-
-        // =================================================
-        // REDIRECCIONAR
-        // =================================================
-
-        switch (
-          respuesta.usuario.rol
-        ) {
-          case "estudiante":
-            navigate(
-              "/estudiante",
-              {
-                replace: true,
-              }
-            );
-            break;
-
-          case "docente":
-            navigate(
-              "/docente",
-              {
-                replace: true,
-              }
-            );
-            break;
-
-          case "coordinador":
-            navigate(
-              "/coordinador",
-              {
-                replace: true,
-              }
-            );
-            break;
-
-          default:
-            setMensaje(
-              "El usuario no tiene un rol válido dentro de SportU."
-            );
-        }
+        guardarSesionYContinuar(respuesta);
       } catch (error) {
         setMensaje(
           error.message ||
@@ -569,6 +576,18 @@ function LoginPage() {
             </button>
 
           </form>
+
+          <div className="login-divider" aria-hidden="true">
+            <span>o continúa con</span>
+          </div>
+
+          {googleConfigurado ? (
+            <div className="login-google-button" ref={googleButtonRef} />
+          ) : (
+            <div className="login-google-unavailable">
+              El acceso con Google quedará disponible cuando se configure la cuenta institucional.
+            </div>
+          )}
 
           {/* SEGURIDAD */}
 
