@@ -55,7 +55,7 @@ const HORAS_ASISTIDAS_SQL = `
       WHERE s.id_evento = e.id_evento
     ),
     CASE
-      WHEN i.asistencia = 'Asistió'
+      WHEN i.asistencia = 'asistio'
       THEN ${DURACION_EVENTO_SQL}
       ELSE 0
     END
@@ -83,7 +83,7 @@ const HORAS_EVALUADAS_SQL = `
       WHERE s.id_evento = e.id_evento
     ),
     CASE
-      WHEN i.asistencia IN ('Asistió', 'No asistió')
+      WHEN i.asistencia IN ('asistio', 'no_asistio')
       THEN ${DURACION_EVENTO_SQL}
       ELSE 0
     END
@@ -243,27 +243,23 @@ const obtenerResumenEstudiante =
             ) AS eventos_proximos,
 
             (
-              SELECT COUNT(*)
-
-              FROM inscripciones i
-
+              SELECT COUNT(DISTINCT a.id_inscripcion)
+              FROM asistencias_sesion a
+              INNER JOIN inscripciones i
+                ON i.id_inscripcion = a.id_inscripcion
               WHERE
                 i.id_usuario = ?
-                AND
-                i.asistencia =
-                'Asistió'
+                AND a.estado = 'Asistió'
             ) AS asistencias_confirmadas,
 
             (
-              SELECT COUNT(*)
-
-              FROM inscripciones i
-
+              SELECT COUNT(DISTINCT a.id_inscripcion)
+              FROM asistencias_sesion a
+              INNER JOIN inscripciones i
+                ON i.id_inscripcion = a.id_inscripcion
               WHERE
                 i.id_usuario = ?
-                AND
-                i.asistencia =
-                'Pendiente'
+                AND a.estado = 'Pendiente'
             ) AS asistencias_pendientes,
 
             (
@@ -392,7 +388,11 @@ const obtenerResumenEstudiante =
 
             e.estado,
 
-            i.asistencia
+            CASE
+              WHEN i.asistencia = 'asistio' THEN 'Asistió'
+              WHEN i.asistencia = 'no_asistio' THEN 'No asistió'
+              ELSE 'Pendiente'
+            END AS asistencia
 
           FROM inscripciones i
 

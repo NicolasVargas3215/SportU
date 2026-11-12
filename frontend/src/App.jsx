@@ -25,6 +25,7 @@ import EventoFormPage from "./pages/coordinador/EventoFormPage";
 import InventarioPage from "./pages/coordinador/InventarioPage";
 import PrestamosPage from "./pages/coordinador/PrestamosPage";
 import HorasPage from "./pages/coordinador/HorasPage";
+import SeguimientoEventoPage from "./pages/coordinador/SeguimientoEventoPage";
 
 // =====================================================
 // ESTUDIANTE
@@ -213,6 +214,13 @@ function App() {
           path="eventos/editar/:id"
           element={
             <EventoFormPage />
+          }
+        />
+
+        <Route
+          path="eventos/:id/seguimiento"
+          element={
+            <SeguimientoEventoPage />
           }
         />
 

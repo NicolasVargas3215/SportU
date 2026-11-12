@@ -9,6 +9,7 @@ const {
   actualizarEvento,
   cambiarEstadoEvento,
   eliminarEvento,
+  obtenerSeguimientoEvento,
 } = require(
   "../controllers/eventoController"
 );
@@ -51,6 +52,13 @@ router.get(
   "/opciones",
   ...protegerCoordinador,
   obtenerOpcionesEvento
+);
+
+// Seguimiento informativo para el coordinador
+router.get(
+  "/:id/seguimiento",
+  ...protegerCoordinador,
+  obtenerSeguimientoEvento
 );
 
 // Consultar un evento

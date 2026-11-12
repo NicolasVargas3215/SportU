@@ -329,7 +329,8 @@ function EventosPage() {
       // =================================================
 
       if (
-        asistencias > 0
+        asistencias > 0 &&
+        evento.estado !== "cancelado"
       ) {
         setError(
           `No se puede eliminar "${evento.nombre}" porque tiene asistencia registrada. Debes conservarlo como parte del historial deportivo. Si ya no se realizará, cambia su estado a "Cancelado".`
@@ -350,7 +351,10 @@ function EventosPage() {
       let textoConfirmacion =
         `¿Seguro que deseas eliminar el evento "${evento.nombre}"?\n\nEsta acción no se puede deshacer.`;
 
-      if (
+      if (evento.estado === "cancelado") {
+        textoConfirmacion =
+          `El evento cancelado "${evento.nombre}" se eliminará definitivamente junto con sus inscripciones y asistencias. Esta acción no se puede deshacer.\n\n¿Deseas continuar?`;
+      } else if (
         inscritos > 0
       ) {
         textoConfirmacion =
@@ -1088,6 +1092,19 @@ function EventosPage() {
 
                             <button
                               type="button"
+                              className="event-view-action"
+                              title="Ver participantes y seguimiento"
+                              onClick={() =>
+                                navigate(
+                                  `/coordinador/eventos/${evento.id_evento}/seguimiento`
+                                )
+                              }
+                            >
+                              <FaUsers />
+                            </button>
+
+                            <button
+                              type="button"
                               className="event-edit-action"
                               title="Editar evento"
                               disabled={
@@ -1107,13 +1124,15 @@ function EventosPage() {
                             <button
                               type="button"
                               className={`event-delete-action ${
-                                asistencias >
-                                0
+                                asistencias > 0 &&
+                                evento.estado !== "cancelado"
                                   ? "protected"
                                   : ""
                               }`}
                               title={
-                                asistencias > 0
+                                evento.estado === "cancelado"
+                                  ? "Eliminar definitivamente el evento cancelado"
+                                  : asistencias > 0
                                   ? "Este evento tiene asistencia registrada"
                                   : inscritos > 0
                                   ? "Eliminar evento e inscripciones pendientes"

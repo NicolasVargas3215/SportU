@@ -44,7 +44,7 @@ const HORAS_ASISTIDAS_SQL = `
       WHERE s.id_evento = e.id_evento
     ),
     CASE
-      WHEN i.asistencia = 'Asistió'
+      WHEN i.asistencia = 'asistio'
       THEN ${DURACION_EVENTO_SQL}
       ELSE 0
     END
@@ -164,13 +164,9 @@ const obtenerDashboardCoordinador =
             ) AS certificados_generados,
 
             (
-              SELECT COUNT(*)
-
-              FROM inscripciones
-
-              WHERE
-                asistencia =
-                'Pendiente'
+              SELECT COUNT(DISTINCT a.id_inscripcion)
+              FROM asistencias_sesion a
+              WHERE a.estado = 'Pendiente'
             ) AS asistencias_pendientes
           `
         );

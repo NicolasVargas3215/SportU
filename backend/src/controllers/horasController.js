@@ -53,7 +53,7 @@ const HORAS_ASISTIDAS_SQL = `
       WHERE s.id_evento = e.id_evento
     ),
     CASE
-      WHEN i.asistencia = 'Asistió'
+      WHEN i.asistencia = 'asistio'
       THEN ${DURACION_EVENTO_SQL}
       ELSE 0
     END
@@ -81,7 +81,7 @@ const HORAS_EVALUADAS_SQL = `
       WHERE s.id_evento = e.id_evento
     ),
     CASE
-      WHEN i.asistencia IN ('Asistió', 'No asistió')
+      WHEN i.asistencia IN ('asistio', 'no_asistio')
       THEN ${DURACION_EVENTO_SQL}
       ELSE 0
     END
@@ -250,40 +250,48 @@ const obtenerEstudiantesHoras =
               2
             ) AS horas_evaluadas,
 
-            SUM(
-              CASE
-                WHEN i.asistencia = 'Asistió'
-                THEN 1
-                ELSE 0
-              END
+            (
+              SELECT COUNT(DISTINCT s.id_evento)
+              FROM sesiones_evento s
+              INNER JOIN asistencias_sesion a
+                ON a.id_sesion = s.id_sesion
+              INNER JOIN inscripciones i2
+                ON i2.id_inscripcion = a.id_inscripcion
+              WHERE i2.id_usuario = u.id_usuario
+                AND a.estado = 'Asistió'
             ) AS eventos_asistidos,
 
-            SUM(
-              CASE
-                WHEN i.asistencia = 'No asistió'
-                THEN 1
-                ELSE 0
-              END
+            (
+              SELECT COUNT(DISTINCT s.id_evento)
+              FROM sesiones_evento s
+              INNER JOIN asistencias_sesion a
+                ON a.id_sesion = s.id_sesion
+              INNER JOIN inscripciones i2
+                ON i2.id_inscripcion = a.id_inscripcion
+              WHERE i2.id_usuario = u.id_usuario
+                AND a.estado = 'No asistió'
             ) AS eventos_no_asistidos,
 
-            SUM(
-              CASE
-                WHEN i.asistencia = 'Pendiente'
-                THEN 1
-                ELSE 0
-              END
+            (
+              SELECT COUNT(DISTINCT s.id_evento)
+              FROM sesiones_evento s
+              INNER JOIN asistencias_sesion a
+                ON a.id_sesion = s.id_sesion
+              INNER JOIN inscripciones i2
+                ON i2.id_inscripcion = a.id_inscripcion
+              WHERE i2.id_usuario = u.id_usuario
+                AND a.estado = 'Pendiente'
             ) AS eventos_pendientes,
 
-            SUM(
-              CASE
-                WHEN i.asistencia
-                  IN (
-                    'Asistió',
-                    'No asistió'
-                  )
-                THEN 1
-                ELSE 0
-              END
+            (
+              SELECT COUNT(DISTINCT s.id_evento)
+              FROM sesiones_evento s
+              INNER JOIN asistencias_sesion a
+                ON a.id_sesion = s.id_sesion
+              INNER JOIN inscripciones i2
+                ON i2.id_inscripcion = a.id_inscripcion
+              WHERE i2.id_usuario = u.id_usuario
+                AND a.estado IN ('Asistió', 'No asistió')
             ) AS eventos_evaluados,
 
             CASE
@@ -523,10 +531,16 @@ const obtenerDetalleHorasEstudiante =
               2
             ) AS duracion_horas,
 
-            COALESCE(a.estado, i.asistencia) AS asistencia,
+            CASE
+              WHEN a.estado IS NOT NULL THEN a.estado
+              WHEN i.asistencia = 'asistio' THEN 'Asistió'
+              WHEN i.asistencia = 'no_asistio' THEN 'No asistió'
+              ELSE 'Pendiente'
+            END AS asistencia,
 
             CASE
-              WHEN COALESCE(a.estado, i.asistencia) = 'Asistió'
+              WHEN a.estado = 'Asistió'
+                OR (a.estado IS NULL AND i.asistencia = 'asistio')
               THEN
                 ROUND(
                   COALESCE(

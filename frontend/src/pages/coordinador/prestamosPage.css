@@ -424,6 +424,26 @@
   cursor: pointer;
 }
 
+.loans-export-button {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 12px;
+  border: 1px solid #b9d2e7;
+  border-radius: 7px;
+  background: #f4f9fd;
+  color: #0b5b9e;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.loans-export-button:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
 .loans-clear-filter:hover {
   border-color: #0d5d9b;
   color: #0d5d9b;

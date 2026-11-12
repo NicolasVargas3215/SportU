@@ -674,33 +674,23 @@ const obtenerEventos = async (
             ) AS inscritos,
 
             (
-              SELECT COUNT(*)
-
-              FROM inscripciones i
-
+              SELECT COUNT(DISTINCT a.id_inscripcion)
+              FROM asistencias_sesion a
+              INNER JOIN sesiones_evento s
+                ON s.id_sesion = a.id_sesion
               WHERE
-                i.id_evento =
-                e.id_evento
-
-                AND
-                i.asistencia IN (
-                  'Asistió',
-                  'No asistió'
-                )
+                s.id_evento = e.id_evento
+                AND a.estado IN ('Asistió', 'No asistió')
             ) AS asistencias_registradas,
 
             (
-              SELECT COUNT(*)
-
-              FROM inscripciones i
-
+              SELECT COUNT(DISTINCT a.id_inscripcion)
+              FROM asistencias_sesion a
+              INNER JOIN sesiones_evento s
+                ON s.id_sesion = a.id_sesion
               WHERE
-                i.id_evento =
-                e.id_evento
-
-                AND
-                i.asistencia =
-                'Pendiente'
+                s.id_evento = e.id_evento
+                AND a.estado = 'Pendiente'
             ) AS inscripciones_pendientes
 
           FROM eventos e
@@ -841,19 +831,13 @@ const obtenerEventoPorId =
               ) AS inscritos,
 
               (
-                SELECT COUNT(*)
-
-                FROM inscripciones i
-
+                SELECT COUNT(DISTINCT a.id_inscripcion)
+                FROM asistencias_sesion a
+                INNER JOIN sesiones_evento s
+                  ON s.id_sesion = a.id_sesion
                 WHERE
-                  i.id_evento =
-                  e.id_evento
-
-                  AND
-                  i.asistencia IN (
-                    'Asistió',
-                    'No asistió'
-                  )
+                  s.id_evento = e.id_evento
+                  AND a.estado IN ('Asistió', 'No asistió')
               ) AS asistencias_registradas
 
             FROM eventos e
@@ -1959,7 +1943,7 @@ const eliminarEvento = async (
               CASE
 
                 WHEN asistencia =
-                  'Pendiente'
+                  'pendiente'
 
                 THEN 1
 
@@ -1972,8 +1956,8 @@ const eliminarEvento = async (
               CASE
 
                 WHEN asistencia IN (
-                  'Asistió',
-                  'No asistió'
+                  'asistio',
+                  'no_asistio'
                 )
 
                 THEN 1
@@ -2014,8 +1998,8 @@ const eliminarEvento = async (
     // =================================================
 
     if (
-      asistenciasRegistradas >
-      0
+      asistenciasRegistradas > 0 &&
+      evento.estado !== "cancelado"
     ) {
       await conexion.rollback();
 
@@ -2025,7 +2009,7 @@ const eliminarEvento = async (
           ok: false,
 
           mensaje:
-            `No se puede eliminar "${evento.nombre}" porque tiene asistencia registrada. Este evento ya hace parte del historial deportivo de los estudiantes. Puedes cambiar su estado a "Cancelado".`,
+            `No se puede eliminar "${evento.nombre}" porque tiene asistencia registrada. Primero debes cambiarlo a "Cancelado".`,
 
           total_inscripciones:
             total,
@@ -2033,6 +2017,29 @@ const eliminarEvento = async (
           asistencias_registradas:
             asistenciasRegistradas,
         });
+    }
+
+    if (evento.estado === "cancelado") {
+      await conexion.query(
+        `
+        DELETE a
+        FROM asistencias_sesion a
+        INNER JOIN sesiones_evento s
+          ON s.id_sesion = a.id_sesion
+        WHERE s.id_evento = ?
+        `,
+        [id]
+      );
+
+      await conexion.query(
+        `DELETE FROM inscripciones WHERE id_evento = ?`,
+        [id]
+      );
+
+      await conexion.query(
+        `DELETE FROM sesiones_evento WHERE id_evento = ?`,
+        [id]
+      );
     }
 
     // =================================================
@@ -2074,7 +2081,10 @@ const eliminarEvento = async (
     let mensaje =
       `El evento "${evento.nombre}" fue eliminado correctamente.`;
 
-    if (
+    if (evento.estado === "cancelado") {
+      mensaje =
+        `El evento cancelado "${evento.nombre}" y todos sus datos relacionados fueron eliminados correctamente.`;
+    } else if (
       total > 0
     ) {
       mensaje =
@@ -2120,6 +2130,151 @@ const eliminarEvento = async (
 };
 
 // =====================================================
+// SEGUIMIENTO INFORMATIVO DEL EVENTO PARA COORDINADOR
+// =====================================================
+
+const obtenerSeguimientoEvento = async (req, res) => {
+  try {
+    const idEvento = Number(req.params.id);
+
+    if (!Number.isInteger(idEvento) || idEvento <= 0) {
+      return res.status(400).json({
+        ok: false,
+        mensaje: "El evento indicado no es válido.",
+      });
+    }
+
+    const [[evento]] = await pool.query(
+      `
+      SELECT
+        e.id_evento,
+        e.nombre,
+        d.nombre AS deporte,
+        u.nombre AS docente,
+        e.lugar,
+        e.estado,
+        DATE_FORMAT(e.fecha_inicio, '%Y-%m-%d %H:%i:%s') AS fecha_inicio,
+        DATE_FORMAT(e.fecha_fin, '%Y-%m-%d %H:%i:%s') AS fecha_fin,
+        e.hora_inicio,
+        e.hora_fin,
+        ROUND(
+          COALESCE(
+            TIME_TO_SEC(TIMEDIFF(e.hora_fin, e.hora_inicio)) / 3600,
+            e.duracion_horas,
+            0
+          ),
+          2
+        ) AS duracion_horas
+      FROM eventos e
+      INNER JOIN deportes d
+        ON d.id_deporte = e.id_deporte
+      LEFT JOIN usuarios u
+        ON u.id_usuario = e.id_docente
+      WHERE e.id_evento = ?
+      LIMIT 1
+      `,
+      [idEvento]
+    );
+
+    if (!evento) {
+      return res.status(404).json({
+        ok: false,
+        mensaje: "El evento no existe.",
+      });
+    }
+
+    const [sesiones] = await pool.query(
+      `
+      SELECT
+        s.id_sesion,
+        DATE_FORMAT(s.fecha_sesion, '%Y-%m-%d') AS fecha_sesion,
+        TIME_FORMAT(s.hora_inicio, '%H:%i') AS hora_inicio,
+        TIME_FORMAT(s.hora_fin, '%H:%i') AS hora_fin,
+        s.estado
+      FROM sesiones_evento s
+      WHERE s.id_evento = ?
+      ORDER BY s.fecha_sesion ASC, s.hora_inicio ASC
+      `,
+      [idEvento]
+    );
+
+    const [estudiantes] = await pool.query(
+      `
+      SELECT
+        i.id_inscripcion,
+        i.id_usuario,
+        u.nombre AS estudiante,
+        u.correo,
+        COUNT(DISTINCT s.id_sesion) AS sesiones_programadas,
+        COUNT(DISTINCT CASE
+          WHEN a.estado IN ('Asistió', 'No asistió') THEN s.id_sesion
+        END) AS sesiones_evaluadas,
+        COUNT(DISTINCT CASE
+          WHEN a.estado = 'Asistió' THEN s.id_sesion
+        END) AS asistencias,
+        COUNT(DISTINCT CASE
+          WHEN a.estado = 'No asistió' THEN s.id_sesion
+        END) AS no_asistencias,
+        COUNT(DISTINCT CASE
+          WHEN a.estado = 'Pendiente' THEN s.id_sesion
+        END) AS pendientes,
+        ROUND(
+          CASE
+            WHEN COUNT(DISTINCT s.id_sesion) > 0
+            THEN (
+              COUNT(DISTINCT CASE
+                WHEN a.estado = 'Asistió' THEN s.id_sesion
+              END) /
+              COUNT(DISTINCT s.id_sesion)
+            ) * 100
+            ELSE 0
+          END,
+          1
+        ) AS porcentaje_asistencia
+      FROM inscripciones i
+      INNER JOIN usuarios u
+        ON u.id_usuario = i.id_usuario
+      LEFT JOIN sesiones_evento s
+        ON s.id_evento = i.id_evento
+      LEFT JOIN asistencias_sesion a
+        ON a.id_sesion = s.id_sesion
+        AND a.id_inscripcion = i.id_inscripcion
+      WHERE i.id_evento = ?
+      GROUP BY i.id_inscripcion, i.id_usuario, u.nombre, u.correo
+      ORDER BY u.nombre ASC
+      `,
+      [idEvento]
+    );
+
+    const [asistencias] = await pool.query(
+      `
+      SELECT a.id_inscripcion, a.id_sesion, a.estado
+      FROM asistencias_sesion a
+      INNER JOIN sesiones_evento s
+        ON s.id_sesion = a.id_sesion
+      WHERE s.id_evento = ?
+      `,
+      [idEvento]
+    );
+
+    return res.json({
+      ok: true,
+      evento,
+      sesiones,
+      estudiantes,
+      asistencias,
+    });
+  } catch (error) {
+    console.error("Error al consultar seguimiento del evento:", error);
+
+    return res.status(500).json({
+      ok: false,
+      mensaje: "No fue posible consultar el seguimiento del evento.",
+    });
+  }
+};
+
+// =====================================================
 // EXPORTACIONES
 // =====================================================
 
@@ -2131,6 +2286,7 @@ module.exports = {
   actualizarEvento,
   cambiarEstadoEvento,
   eliminarEvento,
+  obtenerSeguimientoEvento,
 
   // Compatibilidad
   obtenerEvento:

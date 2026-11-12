@@ -159,6 +159,12 @@ function MisInscripcionesPage() {
       };
 
     cargar();
+
+      window.addEventListener("focus", cargar);
+
+      return () => {
+        window.removeEventListener("focus", cargar);
+      };
   }, []);
 
   const filtradas =
@@ -227,7 +233,7 @@ function MisInscripcionesPage() {
 
             acumulado.horas +=
               Number(
-                item.duracion_horas ||
+                item.horas_obtenidas ||
                   0
               );
           }
@@ -478,7 +484,7 @@ function MisInscripcionesPage() {
                 inscripcion.asistencia ===
                 "Asistió"
                   ? Number(
-                      inscripcion.duracion_horas ||
+                      inscripcion.horas_obtenidas ||
                         0
                     )
                   : 0;

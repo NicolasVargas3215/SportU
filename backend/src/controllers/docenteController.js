@@ -217,23 +217,27 @@ const obtenerResumenDocente =
             ) AS total_inscripciones,
 
             (
-              SELECT COUNT(*)
-              FROM inscripciones i
+              SELECT COUNT(DISTINCT a.id_inscripcion)
+              FROM asistencias_sesion a
+              INNER JOIN sesiones_evento s
+                ON s.id_sesion = a.id_sesion
               INNER JOIN eventos e
-                ON e.id_evento = i.id_evento
+                ON e.id_evento = s.id_evento
               WHERE
                 e.id_docente = ?
-                AND i.asistencia = 'Pendiente'
+                AND a.estado = 'Pendiente'
             ) AS asistencias_pendientes,
 
             (
-              SELECT COUNT(*)
-              FROM inscripciones i
+              SELECT COUNT(DISTINCT a.id_inscripcion)
+              FROM asistencias_sesion a
+              INNER JOIN sesiones_evento s
+                ON s.id_sesion = a.id_sesion
               INNER JOIN eventos e
-                ON e.id_evento = i.id_evento
+                ON e.id_evento = s.id_evento
               WHERE
                 e.id_docente = ?
-                AND i.asistencia = 'Asistió'
+                AND a.estado = 'Asistió'
             ) AS asistencias_confirmadas
           `,
           [
@@ -378,36 +382,33 @@ const obtenerActividadesDocente =
             ) AS inscritos,
 
             (
-              SELECT COUNT(*)
-              FROM inscripciones i
+              SELECT COUNT(DISTINCT a.id_inscripcion)
+              FROM asistencias_sesion a
+              INNER JOIN sesiones_evento s
+                ON s.id_sesion = a.id_sesion
               WHERE
-                i.id_evento =
-                e.id_evento
-                AND
-                i.asistencia =
-                'Asistió'
+                s.id_evento = e.id_evento
+                AND a.estado = 'Asistió'
             ) AS asistieron,
 
             (
-              SELECT COUNT(*)
-              FROM inscripciones i
+              SELECT COUNT(DISTINCT a.id_inscripcion)
+              FROM asistencias_sesion a
+              INNER JOIN sesiones_evento s
+                ON s.id_sesion = a.id_sesion
               WHERE
-                i.id_evento =
-                e.id_evento
-                AND
-                i.asistencia =
-                'No asistió'
+                s.id_evento = e.id_evento
+                AND a.estado = 'No asistió'
             ) AS no_asistieron,
 
             (
-              SELECT COUNT(*)
-              FROM inscripciones i
+              SELECT COUNT(DISTINCT a.id_inscripcion)
+              FROM asistencias_sesion a
+              INNER JOIN sesiones_evento s
+                ON s.id_sesion = a.id_sesion
               WHERE
-                i.id_evento =
-                e.id_evento
-                AND
-                i.asistencia =
-                'Pendiente'
+                s.id_evento = e.id_evento
+                AND a.estado = 'Pendiente'
             ) AS pendientes
 
           FROM eventos e
@@ -548,36 +549,33 @@ const obtenerActividadDocente =
             ) AS inscritos,
 
             (
-              SELECT COUNT(*)
-              FROM inscripciones i
+              SELECT COUNT(DISTINCT a.id_inscripcion)
+              FROM asistencias_sesion a
+              INNER JOIN sesiones_evento s
+                ON s.id_sesion = a.id_sesion
               WHERE
-                i.id_evento =
-                e.id_evento
-                AND
-                i.asistencia =
-                'Asistió'
+                s.id_evento = e.id_evento
+                AND a.estado = 'Asistió'
             ) AS asistieron,
 
             (
-              SELECT COUNT(*)
-              FROM inscripciones i
+              SELECT COUNT(DISTINCT a.id_inscripcion)
+              FROM asistencias_sesion a
+              INNER JOIN sesiones_evento s
+                ON s.id_sesion = a.id_sesion
               WHERE
-                i.id_evento =
-                e.id_evento
-                AND
-                i.asistencia =
-                'No asistió'
+                s.id_evento = e.id_evento
+                AND a.estado = 'No asistió'
             ) AS no_asistieron,
 
             (
-              SELECT COUNT(*)
-              FROM inscripciones i
+              SELECT COUNT(DISTINCT a.id_inscripcion)
+              FROM asistencias_sesion a
+              INNER JOIN sesiones_evento s
+                ON s.id_sesion = a.id_sesion
               WHERE
-                i.id_evento =
-                e.id_evento
-                AND
-                i.asistencia =
-                'Pendiente'
+                s.id_evento = e.id_evento
+                AND a.estado = 'Pendiente'
             ) AS pendientes
 
           FROM eventos e
@@ -675,10 +673,10 @@ const obtenerActividadDocente =
               '%Y-%m-%d %H:%i:%s'
             ) AS fecha_inscripcion,
 
-            COALESCE(
-              a.estado,
-              i.asistencia
-            ) AS asistencia,
+            CASE
+              WHEN a.estado IS NOT NULL THEN a.estado
+              ELSE 'Pendiente'
+            END AS asistencia,
 
             COALESCE(
               resumen.sesiones_programadas,
@@ -703,7 +701,7 @@ const obtenerActividadDocente =
             ROUND(
               CASE
                 WHEN COALESCE(
-                  resumen.sesiones_evaluadas,
+                  resumen.sesiones_programadas,
                   0
                 ) > 0
                 THEN (
@@ -711,7 +709,7 @@ const obtenerActividadDocente =
                     resumen.asistencias,
                     0
                   ) /
-                  resumen.sesiones_evaluadas
+                  resumen.sesiones_programadas
                 ) * 100
                 ELSE 0
               END,
@@ -1140,6 +1138,42 @@ const guardarAsistencia =
             idEvento,
           ]
         );
+      }
+
+      if (idSesion) {
+        for (const idInscripcion of idsUnicos) {
+          await conexion.query(
+            `
+            UPDATE inscripciones i
+            SET asistencia = (
+              SELECT CASE
+                WHEN SUM(CASE WHEN a.estado = 'Pendiente' THEN 1 ELSE 0 END) > 0
+                  THEN 'pendiente'
+                WHEN SUM(CASE WHEN a.estado = 'Asistió' THEN 1 ELSE 0 END) > 0
+                  AND SUM(CASE WHEN a.estado = 'No asistió' THEN 1 ELSE 0 END) = 0
+                  THEN 'asistio'
+                WHEN SUM(CASE WHEN a.estado = 'No asistió' THEN 1 ELSE 0 END) > 0
+                  AND SUM(CASE WHEN a.estado = 'Asistió' THEN 1 ELSE 0 END) = 0
+                  THEN 'no_asistio'
+                ELSE 'pendiente'
+              END
+              FROM sesiones_evento s
+              LEFT JOIN asistencias_sesion a
+                ON a.id_sesion = s.id_sesion
+                AND a.id_inscripcion = ?
+              WHERE s.id_evento = ?
+            )
+            WHERE i.id_inscripcion = ?
+              AND i.id_evento = ?
+            `,
+            [
+              idInscripcion,
+              idEvento,
+              idInscripcion,
+              idEvento,
+            ]
+          );
+        }
       }
 
       await conexion.commit();

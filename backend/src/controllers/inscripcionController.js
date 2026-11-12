@@ -577,12 +577,63 @@ const obtenerMisInscripciones =
               e.duracion_horas,
               e.estado AS estado_evento,
 
+              COALESCE(
+                sesiones_totales.sesiones_programadas,
+                0
+              ) AS sesiones_programadas,
+
+              COALESCE(
+                sesiones_asistencia.sesiones_evaluadas,
+                0
+              ) AS sesiones_evaluadas,
+
+              COALESCE(
+                sesiones_asistencia.asistencias,
+                0
+              ) AS asistencias,
+
+              COALESCE(
+                sesiones_asistencia.no_asistencias,
+                0
+              ) AS no_asistencias,
+
+              COALESCE(
+                sesiones_asistencia.pendientes,
+                0
+              ) AS pendientes,
+
+              COALESCE(
+                sesiones_asistencia.horas_obtenidas,
+                0
+              ) AS horas_obtenidas,
+
+              CASE
+                WHEN COALESCE(
+                  sesiones_totales.sesiones_programadas,
+                  0
+                ) > 0 THEN
+                  CASE
+                    WHEN COALESCE(sesiones_asistencia.pendientes, 0) > 0
+                      THEN 'Pendiente'
+                    WHEN COALESCE(sesiones_asistencia.asistencias, 0) > 0
+                      AND COALESCE(sesiones_asistencia.no_asistencias, 0) = 0
+                      THEN 'Asistió'
+                    WHEN COALESCE(sesiones_asistencia.no_asistencias, 0) > 0
+                      AND COALESCE(sesiones_asistencia.asistencias, 0) = 0
+                      THEN 'No asistió'
+                    ELSE 'Pendiente'
+                  END
+                WHEN i.asistencia = 'asistio'
+                  THEN 'Asistió'
+                WHEN i.asistencia = 'no_asistio'
+                  THEN 'No asistió'
+                ELSE 'Pendiente'
+              END AS asistencia,
+
               DATE_FORMAT(
                 i.fecha_inscripcion,
                 '%Y-%m-%d'
-              ) AS fecha_inscripcion,
-
-              i.asistencia
+              ) AS fecha_inscripcion
 
             FROM inscripciones i
 
@@ -597,6 +648,54 @@ const obtenerMisInscripciones =
             INNER JOIN usuarios u
               ON u.id_usuario =
               e.id_docente
+
+            LEFT JOIN (
+              SELECT
+                id_evento,
+                COUNT(*) AS sesiones_programadas
+              FROM sesiones_evento
+              GROUP BY id_evento
+            ) sesiones_totales
+              ON sesiones_totales.id_evento = e.id_evento
+
+            LEFT JOIN (
+              SELECT
+                s.id_evento,
+                a.id_inscripcion,
+                SUM(
+                  CASE
+                    WHEN a.estado IN ('Asistió', 'No asistió')
+                      THEN 1
+                    ELSE 0
+                  END
+                ) AS sesiones_evaluadas,
+                SUM(
+                  CASE WHEN a.estado = 'Asistió' THEN 1 ELSE 0 END
+                ) AS asistencias,
+                SUM(
+                  CASE WHEN a.estado = 'No asistió' THEN 1 ELSE 0 END
+                ) AS no_asistencias,
+                SUM(
+                  CASE WHEN a.estado = 'Pendiente' THEN 1 ELSE 0 END
+                ) AS pendientes,
+                SUM(
+                  CASE
+                    WHEN a.estado = 'Asistió' THEN
+                      TIME_TO_SEC(
+                        TIMEDIFF(s.hora_fin, s.hora_inicio)
+                      ) / 3600
+                    ELSE 0
+                  END
+                ) AS horas_obtenidas
+              FROM sesiones_evento s
+              LEFT JOIN asistencias_sesion a
+                ON a.id_sesion = s.id_sesion
+              GROUP BY
+                s.id_evento,
+                a.id_inscripcion
+            ) sesiones_asistencia
+              ON sesiones_asistencia.id_evento = e.id_evento
+              AND sesiones_asistencia.id_inscripcion = i.id_inscripcion
 
             WHERE
               i.id_usuario = ?

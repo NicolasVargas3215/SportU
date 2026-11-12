@@ -7,6 +7,7 @@ import {
 import {
   FaBoxOpen,
   FaCheckCircle,
+  FaDownload,
   FaExchangeAlt,
   FaExclamationTriangle,
   FaHistory,
@@ -524,6 +525,31 @@ function PrestamosPage() {
       fechaHasta,
     ]);
 
+  const descargarPrestamos = async () => {
+    const XLSX = await import("xlsx");
+    const filas = prestamosFiltrados.map((prestamo) => ({
+      Usuario: prestamo.usuario,
+      Correo: prestamo.correo,
+      Rol: prestamo.rol,
+      Implemento: prestamo.equipo,
+      Cantidad: Number(prestamo.cantidad || 0),
+      "Fecha de préstamo": prestamo.fecha_prestamo || "",
+      "Fecha de devolución": prestamo.fecha_devolucion || "",
+      Estado: String(prestamo.estado || "").toLowerCase() === "prestado"
+        ? "Prestado"
+        : "Devuelto",
+    }));
+    const hoja = XLSX.utils.json_to_sheet(filas);
+    hoja["!cols"] = [
+      { wch: 28 }, { wch: 34 }, { wch: 16 }, { wch: 26 },
+      { wch: 12 }, { wch: 22 }, { wch: 22 }, { wch: 14 },
+    ];
+    hoja["!autofilter"] = { ref: hoja["!ref"] };
+    const libro = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(libro, hoja, "Préstamos");
+    XLSX.writeFile(libro, `prestamos-sportu-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
   // =====================================================
   // RESUMEN
   // =====================================================
@@ -966,6 +992,16 @@ function PrestamosPage() {
           </div>
 
           <div className="loans-toolbar-controls">
+
+            <button
+              type="button"
+              className="loans-export-button"
+              onClick={descargarPrestamos}
+              disabled={!prestamosFiltrados.length}
+              title="Descargar los préstamos filtrados"
+            >
+              <FaDownload /> Descargar listado
+            </button>
 
             <div className="loans-search">
 

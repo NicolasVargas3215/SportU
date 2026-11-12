@@ -191,7 +191,20 @@ function AsistenciaPage() {
 
   const cambiarSesion = async (event) => {
     const nuevaSesion = event.target.value;
+
+    // Cada fecha tiene su propio registro de asistencia. Mientras se
+    // consulta la nueva sesión, no debemos conservar las selecciones locales
+    // de la sesión anterior.
+    setInscritos((actuales) =>
+      actuales.map((estudiante) => ({
+        ...estudiante,
+        asistencia: "Pendiente",
+      }))
+    );
+
     setIdSesion(nuevaSesion);
+    setExito("");
+    setError("");
     await cargarActividad(nuevaSesion);
   };
 
