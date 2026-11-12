@@ -9,6 +9,10 @@ require("dotenv").config();
 const pool =
   require("./src/config/db");
 
+const {
+  ensureAttendanceStatusSchema,
+} = require("./src/config/migrations");
+
 // =====================================================
 // RUTAS
 // =====================================================
@@ -267,11 +271,22 @@ app.use(
 // SERVIDOR
 // =====================================================
 
-app.listen(
-  PORT,
-  () => {
-    console.log(
-      `Servidor SportU ejecutándose en http://localhost:${PORT}`
+(async () => {
+  try {
+    await ensureAttendanceStatusSchema();
+  } catch (error) {
+    console.error(
+      "No fue posible validar el esquema de asistencias:",
+      error
     );
   }
-);
+
+  app.listen(
+    PORT,
+    () => {
+      console.log(
+        `Servidor SportU ejecutándose en http://localhost:${PORT}`
+      );
+    }
+  );
+})();
