@@ -127,6 +127,33 @@ VITE_GOOGLE_CLIENT_ID=tu_client_id_oauth
 
 Para utilizar Google, el Client ID debe estar configurado en Google Cloud con los orígenes autorizados del entorno donde se ejecuta la aplicación.
 
+## Despliegue actual
+
+La versión publicada utiliza una arquitectura separada:
+
+- **Frontend:** Vercel — https://sport-u-one.vercel.app/
+- **Backend:** Railway — https://sportu-production.up.railway.app/
+- **Base de datos:** MySQL administrado por Railway.
+
+El frontend se construye desde la carpeta `frontend` y consume el backend mediante `VITE_API_URL`. Railway ejecuta el backend desde la carpeta `backend` y proporciona las variables de conexión a MySQL. Las variables de producción se configuran directamente en Vercel y Railway; no se almacenan en GitHub.
+
+Para publicar una nueva versión:
+
+1. Validar localmente el backend y ejecutar `npm run build` dentro de `frontend`.
+2. Revisar que no existan archivos `.env`, contraseñas, tokens ni claves reales en los cambios.
+3. Confirmar los cambios en la rama `main` de GitHub.
+4. Verificar en Railway que el backend finalice correctamente el despliegue y revisar sus logs.
+5. Verificar en Vercel que el frontend quede en estado `Ready`.
+6. Probar el inicio de sesión, los roles, la asistencia, las horas, los certificados, los préstamos y las exportaciones desde las URLs públicas.
+
+El endpoint de comprobación de conexión del backend es:
+
+```text
+https://sportu-production.up.railway.app/api/db-test
+```
+
+Debe responder indicando que SportU está conectado correctamente con MySQL.
+
 ## Scripts disponibles
 
 ### Backend
@@ -167,6 +194,8 @@ Antes de entregar una versión:
 4. Verifica filtros y exportaciones de asistencia y préstamos.
 5. Confirma que no se incluyan archivos `.env`, contraseñas ni claves reales en el commit.
 
+La asistencia se registra por sesión. Al cambiar de fecha, la pantalla carga únicamente los estados de esa sesión; el ponderado se calcula con las sesiones evaluadas y las horas acumuladas solo consideran asistencias confirmadas.
+
 ## Documentación
 
 La documentación complementaria se entrega en:
@@ -180,7 +209,9 @@ Repositorio oficial: [github.com/NicolasVargas3215/SportU](https://github.com/Ni
 
 ## Estado del proyecto
 
-La aplicación está preparada para ejecución local. El despliegue en la nube, la recuperación automática de contraseña y la configuración productiva de OAuth requieren configuración adicional antes de una publicación institucional.
+La aplicación cuenta con una versión funcional desplegada en Vercel, Railway y MySQL administrado. Incluye autenticación local y acceso con Google para cuentas institucionales configuradas, asistencia por sesión, cálculo de ponderado y horas, certificados descargables en PDF, filtros y exportación de préstamos.
+
+La recuperación automática de contraseña todavía requiere una implementación adicional. Antes de una puesta en operación institucional se recomienda configurar copias de seguridad periódicas, pruebas automatizadas, auditoría de cambios y un canal formal de soporte.
 
 ## Licencia y créditos
 
