@@ -1,5 +1,5 @@
 const API_URL =
-  "http://localhost:3000/api/inventario";
+  `${import.meta.env.VITE_API_URL}/inventario`;
 
 // =====================================================
 // TOKEN

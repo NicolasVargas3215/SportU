@@ -1,5 +1,5 @@
 const API_URL =
-  "http://localhost:3000/api/horas";
+  `${import.meta.env.VITE_API_URL}/horas`;
 
 // =====================================================
 // TOKEN
