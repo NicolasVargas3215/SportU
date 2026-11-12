@@ -3,7 +3,8 @@ import { FaArrowLeft, FaCalendarAlt, FaDownload, FaMapMarkerAlt, FaUsers } from 
 import { useNavigate, useParams } from "react-router-dom";
 import "./seguimientoEventoPage.css";
 
-const API_URL = "http://localhost:3000/api/eventos";
+const API_URL =
+  `${import.meta.env.VITE_API_URL}/eventos`;
 
 const formatearEstado = (estado) => ({
   programada: "Programada",

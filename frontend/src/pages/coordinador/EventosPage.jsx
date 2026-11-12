@@ -25,7 +25,7 @@ import {
 import "./eventosPage.css";
 
 const API_URL =
-  "http://localhost:3000/api/eventos";
+  `${import.meta.env.VITE_API_URL}/eventos`;
 
 // =====================================================
 // ESTADOS
