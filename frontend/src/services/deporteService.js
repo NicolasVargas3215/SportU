@@ -42,6 +42,18 @@ const procesarRespuesta = async (
 // OBTENER DEPORTES
 // =====================================================
 
+export const obtenerCategorias = async () => {
+  const respuesta = await fetch(
+    `${API_URL}/categorias`,
+    { headers: { Authorization: `Bearer ${obtenerToken()}` } }
+  );
+  const datos = await procesarRespuesta(
+    respuesta,
+    "Error al consultar las categorías"
+  );
+  return Array.isArray(datos.categorias) ? datos.categorias : [];
+};
+
 export const obtenerDeportes =
   async () => {
     const respuesta =

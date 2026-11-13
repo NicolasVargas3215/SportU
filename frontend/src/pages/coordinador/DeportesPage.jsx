@@ -28,6 +28,7 @@ import {
 
 import {
   obtenerDeportes,
+  obtenerCategorias,
   crearDeporte,
   actualizarDeporte,
   cambiarEstadoDeporte,
@@ -179,6 +180,9 @@ function DeportesPage() {
     setDeportes,
   ] = useState([]);
 
+  const [categorias, setCategorias] = useState([]);
+  const [categoriaFiltro, setCategoriaFiltro] = useState("");
+
   // =====================================================
   // ESTADOS DE INTERFAZ
   // =====================================================
@@ -247,6 +251,8 @@ function DeportesPage() {
     setDescripcion,
   ] = useState("");
 
+  const [idCategoria, setIdCategoria] = useState("");
+
   // =====================================================
   // CARGAR DEPORTES
   // =====================================================
@@ -259,6 +265,11 @@ function DeportesPage() {
 
         const datos =
           await obtenerDeportes();
+
+        const categoriasDatos =
+          await obtenerCategorias();
+
+        setCategorias(categoriasDatos);
 
         setDeportes(
           Array.isArray(datos)
@@ -297,6 +308,7 @@ function DeportesPage() {
 
       setNombre("");
       setDescripcion("");
+      setIdCategoria("");
 
       setError("");
       setMensajeExito("");
@@ -329,6 +341,10 @@ function DeportesPage() {
       setDescripcion(
         deporte.descripcion ||
           ""
+      );
+
+      setIdCategoria(
+        String(deporte.id_categoria || "")
       );
 
       setError("");
@@ -384,6 +400,11 @@ function DeportesPage() {
         return;
       }
 
+      if (!idCategoria) {
+        setError("La categoría del deporte es obligatoria.");
+        return;
+      }
+
       try {
         setGuardando(true);
 
@@ -396,6 +417,8 @@ function DeportesPage() {
 
           descripcion:
             descripcionLimpia,
+
+          id_categoria: idCategoria,
         };
 
         if (
@@ -599,11 +622,20 @@ function DeportesPage() {
             ).includes(texto) ||
             normalizarTexto(
               deporte.descripcion
+            ).includes(texto) ||
+            normalizarTexto(
+              deporte.categoria
             ).includes(texto);
+
+          const coincideCategoria =
+            !categoriaFiltro ||
+            String(deporte.id_categoria) ===
+              String(categoriaFiltro);
 
           return (
             coincideEstado &&
-            coincideBusqueda
+            coincideBusqueda &&
+            coincideCategoria
           );
         }
       );
@@ -611,6 +643,7 @@ function DeportesPage() {
       deportes,
       busqueda,
       filtroEstado,
+      categoriaFiltro,
     ]);
 
   // =====================================================
@@ -869,6 +902,27 @@ function DeportesPage() {
               </div>
 
               <div className="sports-field">
+                <label htmlFor="categoria-deporte">
+                  Categoría del deporte
+                  <span>*</span>
+                </label>
+
+                <select
+                  id="categoria-deporte"
+                  value={idCategoria}
+                  onChange={(event) => setIdCategoria(event.target.value)}
+                  required
+                >
+                  <option value="">Selecciona una categoría</option>
+                  {categorias.map((categoria) => (
+                    <option key={categoria.id_categoria} value={categoria.id_categoria}>
+                      {categoria.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="sports-field">
 
                 <label htmlFor="descripcion-deporte">
                   Descripción
@@ -984,6 +1038,19 @@ function DeportesPage() {
             Inactivos
           </option>
 
+        </select>
+
+        <select
+          className="sports-state-filter"
+          value={categoriaFiltro}
+          onChange={(event) => setCategoriaFiltro(event.target.value)}
+        >
+          <option value="">Todas las categorías</option>
+          {categorias.map((categoria) => (
+            <option key={categoria.id_categoria} value={categoria.id_categoria}>
+              {categoria.nombre}
+            </option>
+          ))}
         </select>
 
       </div>
@@ -1102,6 +1169,10 @@ function DeportesPage() {
                         deporte.nombre
                       }
                     </h2>
+
+                    <small className="sport-category-label">
+                      {deporte.categoria || "Sin categoría"}
+                    </small>
 
                     <p>
                       {deporte.descripcion ||

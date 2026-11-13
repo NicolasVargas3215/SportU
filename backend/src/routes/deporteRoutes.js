@@ -3,6 +3,7 @@ const express =
 
 const {
   obtenerDeportes,
+  obtenerCategorias,
   crearDeporte,
   actualizarDeporte,
   cambiarEstadoDeporte,
@@ -40,6 +41,12 @@ router.get(
   "/",
   ...protegerCoordinador,
   obtenerDeportes
+);
+
+router.get(
+  "/categorias",
+  ...protegerCoordinador,
+  obtenerCategorias
 );
 
 // =====================================================

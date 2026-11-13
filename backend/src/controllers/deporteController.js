@@ -1,5 +1,17 @@
 const pool = require("../config/db");
 
+const obtenerCategorias = async (req, res) => {
+  try {
+    const [categorias] = await pool.query(
+      "SELECT id_categoria, nombre, descripcion FROM categorias_deportivas WHERE estado = 'activo' ORDER BY nombre"
+    );
+    return res.json({ ok: true, categorias });
+  } catch (error) {
+    console.error("Error al consultar categorías deportivas:", error);
+    return res.status(500).json({ ok: false, mensaje: "Error al consultar las categorías deportivas" });
+  }
+};
+
 // =====================================================
 // OBTENER TODOS LOS DEPORTES
 // =====================================================
@@ -12,6 +24,8 @@ const obtenerDeportes = async (req, res) => {
         d.nombre,
         d.descripcion,
         d.estado,
+        d.id_categoria,
+        c.nombre AS categoria,
 
         (
           SELECT COUNT(*)
@@ -20,6 +34,7 @@ const obtenerDeportes = async (req, res) => {
         ) AS eventos_asociados
 
       FROM deportes d
+      LEFT JOIN categorias_deportivas c ON c.id_categoria = d.id_categoria
 
       ORDER BY d.id_deporte DESC
     `);
@@ -58,6 +73,7 @@ const crearDeporte = async (req, res) => {
     const {
       nombre,
       descripcion,
+      id_categoria,
     } = req.body;
 
     const nombreLimpio =
@@ -65,6 +81,10 @@ const crearDeporte = async (req, res) => {
 
     const descripcionLimpia =
       String(descripcion || "").trim();
+
+    if (!id_categoria) {
+      return res.status(400).json({ ok: false, mensaje: "La categoría del deporte es obligatoria" });
+    }
 
     if (!nombreLimpio) {
       return res.status(400).json({
@@ -107,10 +127,12 @@ const crearDeporte = async (req, res) => {
         (
           nombre,
           descripcion,
+          id_categoria,
           estado
         )
         VALUES
         (
+          ?,
           ?,
           ?,
           'activo'
@@ -119,6 +141,7 @@ const crearDeporte = async (req, res) => {
       [
         nombreLimpio,
         descripcionLimpia || null,
+        id_categoria,
       ]
     );
 
@@ -158,6 +181,7 @@ const actualizarDeporte = async (req, res) => {
     const {
       nombre,
       descripcion,
+      id_categoria,
     } = req.body;
 
     const nombreLimpio =
@@ -165,6 +189,10 @@ const actualizarDeporte = async (req, res) => {
 
     const descripcionLimpia =
       String(descripcion || "").trim();
+
+    if (!id_categoria) {
+      return res.status(400).json({ ok: false, mensaje: "La categoría del deporte es obligatoria" });
+    }
 
     if (!nombreLimpio) {
       return res.status(400).json({
@@ -237,7 +265,8 @@ const actualizarDeporte = async (req, res) => {
 
         SET
           nombre = ?,
-          descripcion = ?
+          descripcion = ?,
+          id_categoria = ?
 
         WHERE
           id_deporte = ?
@@ -245,6 +274,7 @@ const actualizarDeporte = async (req, res) => {
       [
         nombreLimpio,
         descripcionLimpia || null,
+        id_categoria,
         id,
       ]
     );
@@ -490,6 +520,7 @@ const eliminarDeporte = async (req, res) => {
 // =====================================================
 
 module.exports = {
+  obtenerCategorias,
   obtenerDeportes,
   crearDeporte,
   actualizarDeporte,
